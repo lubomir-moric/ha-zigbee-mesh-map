@@ -19,6 +19,10 @@ Zigbee Mesh Map Card is a modern Lovelace card for Home Assistant that visualize
 
 ![Zigbee Mesh Map](media/zigbee-mesh-map.png)
 
+⚠️ **IMPORTANT: Zigbee2MQTT Only**
+
+This card is designed exclusively for use with Zigbee2MQTT. It is not compatible with ZHA or DeCONZ.
+
 ## 📦 Installation
 
 ### HACS (Custom Repository)
@@ -51,8 +55,9 @@ If you are using Zigbee2MQTT, add the following sensor to your `configuration.ya
 ```yaml
 sensor:
   - platform: mqtt
-    name: Zigbee Network Map
+    name: Zigbee2MQTT Network Map
     state_topic: zigbee2mqtt/bridge/response/networkmap
+    unique_id: zigbee2mqtt_networkmap
     value_template: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
     json_attributes_topic: zigbee2mqtt/bridge/response/networkmap
     json_attributes_template: "{{ value_json.data.value | tojson }}"
@@ -78,7 +83,7 @@ sequence:
     metadata: {}
     data:
       topic: zigbee2mqtt/bridge/request/networkmap
-      payload: "{\"type\":\"graphviz\",\"routes\":true}"
+      payload: "{\"type\":\"raw\",\"routes\":false}"
 alias: Zigbee map refresh
 ```
 Optionally create automation which executes this script e.g. every hour:
