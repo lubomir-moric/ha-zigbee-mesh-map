@@ -3,5 +3,5 @@
   "render_readme": true,
   "content_in_root": true,
   "filename": "zigbee-mesh-map.js",
-  "icon": "media/zigbee-mesh-map.svg"
+  "icon": "media/icon.png"
 }
