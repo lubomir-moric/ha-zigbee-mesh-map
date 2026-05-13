@@ -5,14 +5,14 @@
 [![License](https://img.shields.io/badge/License-MIT--0-green.svg)](ca://s?q=Show_license_info)
 [![Stars](https://img.shields.io/github/stars/lubomir-moric/ha-zigbee-mesh-map.svg)](ca://s?q=Show_repository_stars)
 
-ha-zigbee-mesh-map is a modern Lovelace card for Home Assistant that visualizes your Zigbee mesh network from Zigbee2MQTT.  It provides an interactive graph, manual refresh, smooth animations, automatic updates when the topology changes, and a clean HA-native UI.
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map)
+
+Zigbee Mesh Map Card is a modern Lovelace card for Home Assistant that visualizes your Zigbee mesh network from Zigbee2MQTT. It provides an interactive graph, manual refresh, smooth animations, automatic updates when the topology changes, and a clean HA-native UI.
 
 ## ✨ Features
 
 - Interactive Zigbee mesh visualization (nodes + links)
 - Automatic redraw when Zigbee2MQTT publishes a new map
-- Manual refresh button with animations
-- "Refreshing..." status indicator
 - Smooth map transition effects
 - Works with any Zigbee2MQTT `networkmap` entity
 - Lightweight, no external dependencies
@@ -43,6 +43,20 @@ type: module
 
 url: /local/zigbee-mesh-map/zigbee-mesh-map.js
 type: module
+
+## 📡 Zigbee Network Map Sensor (Required)
+To use this card, you must expose your Zigbee network map as a Home Assistant sensor.
+If you are using Zigbee2MQTT, add the following sensor to your `configuration.yaml`:
+
+```yaml
+sensor:
+  - platform: mqtt
+    name: Zigbee Network Map
+    state_topic: zigbee2mqtt/bridge/response/networkmap
+    value_template: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+    json_attributes_topic: zigbee2mqtt/bridge/response/networkmap
+    json_attributes_template: "{{ value_json.data.value | tojson }}"
+```
 
 ##  🧩 Usage
 
@@ -92,7 +106,7 @@ mode: single
 ###  🧪 Troubleshooting
 
 The map does not refresh:
-- Ensure your script publishes {"type":"graphviz","routes":true}}
+- Ensure your script publishes `{"type":"graphviz","routes":true}}`
 - Check Zigbee2MQTT logs for map generation errors
 - Verify the entity updates in Developer Tools – States
 

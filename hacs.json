@@ -3,5 +3,8 @@
   "render_readme": true,
   "content_in_root": true,
   "filename": "zigbee-mesh-map.js",
+  "resources": [
+    "lib/d3.esm.min.js"
+  ],
   "icon": "media/icon.png"
 }
