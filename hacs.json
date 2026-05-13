@@ -2,5 +2,6 @@
   "name": "Zigbee Mesh Map Card",
   "content_in_root": true,
   "filename": "zigbee-mesh-map.js",
-  "render_readme": true
+  "render_readme": true,
+  "icon": "media/zigbee-mesh-map.svg"
 }

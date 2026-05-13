@@ -2,7 +2,6 @@
   "name": "Zigbee Mesh Map Card",
   "filename": "zigbee-mesh-map.js",
   "version": "1.0.0",
-  "domain": "zigbee_mesh_map",
   "type": "module",
   "render_readme": true,
   "resources": [

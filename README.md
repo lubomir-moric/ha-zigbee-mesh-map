@@ -1,5 +1,10 @@
 # ha-zigbee-mesh-map
 
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Release](https://img.shields.io/github/v/release/lubomir-moric/ha-zigbee-mesh-map)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/releases)
+[![License](https://img.shields.io/badge/License-MIT--0-green.svg)](ca://s?q=Show_license_info)
+[![Stars](https://img.shields.io/github/stars/lubomir-moric/ha-zigbee-mesh-map.svg)](ca://s?q=Show_repository_stars)
+
 ha-zigbee-mesh-map is a modern Lovelace card for Home Assistant that visualizes your Zigbee mesh network from Zigbee2MQTT.  It provides an interactive graph, manual refresh, smooth animations, automatic updates when the topology changes, and a clean HA-native UI.
 
 ## ✨ Features
@@ -98,3 +103,7 @@ Routing table errors:
 ##  📄 License
 
 MIT No Attribution (MIT-0)
+
+## ✨ AI‑Generated Project
+This project was created with extensive assistance from AI tools.
+Most of the code, structure, and documentation were generated through iterative AI‑guided development and then manually reviewed, adjusted, and refined.
