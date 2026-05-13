@@ -168,8 +168,6 @@ class ZigbeeMeshMapCard extends HTMLElement {
             lqi: l.lqi
         }));
 
-        const d3 = window.d3;
-
         const width = 400;
         const height = 400;
 
