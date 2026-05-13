@@ -1,8 +1,8 @@
-class ZigbeeMapCard extends HTMLElement {
+class ZigbeeMeshMapCard extends HTMLElement {
 
     setConfig(config) {
         if (!config.entity) {
-            throw new Error("zigbee-map-card requires 'entity:'");
+            throw new Error("zigbee-mesh-map requires 'entity:'");
         }
         this._config = config;
     
@@ -260,4 +260,4 @@ class ZigbeeMapCard extends HTMLElement {
 
 }
 
-customElements.define("zigbee-map-card", ZigbeeMapCard);
+customElements.define("zigbee-mesh-map", ZigbeeMeshMapCard);
