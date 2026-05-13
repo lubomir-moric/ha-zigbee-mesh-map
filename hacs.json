@@ -1,0 +1,6 @@
+{
+  "name": "Zigbee Mesh Map Card",
+  "content_in_root": true,
+  "filename": "zigbee-mesh-map.js",
+  "render_readme": true
+}
