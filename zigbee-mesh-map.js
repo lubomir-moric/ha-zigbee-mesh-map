@@ -166,7 +166,8 @@ class ZigbeeMeshMapCard extends HTMLElement {
             lqi: l.lqi
         }));
 
-        await import("/local/d3.esm.min.js");
+        import * as d3 from "./lib/d3.esm.min.js";
+
         const d3 = window.d3;
 
         const width = 400;
