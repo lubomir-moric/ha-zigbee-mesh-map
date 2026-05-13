@@ -1,3 +1,5 @@
+import * as d3 from "./lib/d3.esm.min.js";
+
 class ZigbeeMeshMapCard extends HTMLElement {
 
     setConfig(config) {
@@ -165,8 +167,6 @@ class ZigbeeMeshMapCard extends HTMLElement {
             target: l.targetIeeeAddr || l.target?.ieeeAddr,
             lqi: l.lqi
         }));
-
-        import * as d3 from "./lib/d3.esm.min.js";
 
         const d3 = window.d3;
 
