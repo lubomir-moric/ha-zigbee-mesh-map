@@ -1,4 +1,4 @@
-import * as d3 from "./lib/d3.esm.min.js";
+import * as d3 from "https://cdn.skypack.dev/d3@7";
 
 class ZigbeeMeshMapCard extends HTMLElement {
 
