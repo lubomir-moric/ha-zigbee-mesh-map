@@ -4,5 +4,11 @@
   "version": "1.0.0",
   "domain": "zigbee_mesh_map",
   "type": "module",
-  "render_readme": true
+  "render_readme": true,
+  "resources": [
+    {
+      "file": "zigbee-mesh-map.js",
+      "type": "module"
+    }
+  ]
 }
