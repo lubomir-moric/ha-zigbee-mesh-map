@@ -12,6 +12,8 @@ ha-zigbee-mesh-map is a modern Lovelace card for Home Assistant that visualizes 
 - Works with any Zigbee2MQTT `networkmap` entity
 - Lightweight, no external dependencies
 
+![Zigbee Mesh Map](media/zigbee-mesh-map.png)
+
 ## 📦 Installation
 
 ### HACS (Custom Repository)
@@ -30,7 +32,7 @@ type: module
 2. Place it in:
 
 ```
-/config/www/zigbee-m✨esh-map/
+/config/www/zigbee-mesh-map/
 ```
 3. Add the resource:
 
