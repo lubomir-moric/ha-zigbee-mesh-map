@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/License-MIT--0-green.svg)](ca://s?q=Show_license_info)
 [![Stars](https://img.shields.io/github/stars/lubomir-moric/ha-zigbee-mesh-map.svg)](ca://s?q=Show_repository_stars)
 
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map)
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map&category=plugin)
 
 A modern Lovelace card for Home Assistant that visualizes your Zigbee mesh network from Zigbee2MQTT. Interactive graph with zoom, pan, drag, configurable colors, LQI-based link quality indicators, and automatic updates when the topology changes.
 
@@ -38,20 +38,18 @@ Shows all neighbor/sibling links with the backbone and direct routes emphasised.
 
 ## 📦 Installation
 
-### HACS (Custom Repository)
-1. Open HACS → Frontend → Custom repositories
-2. Add:
-   - URL: `https://github.com/lubomir-moric/ha-zigbee-mesh-map`
-   - Category: Lovelace
-3. Install **Zigbee Mesh Map Card**
-4. Add the resource manually if needed:
+### Method 1: The Easy Way (Recommended)
+Click the button below to automatically open the repository in HACS:
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map&category=plugin)
 
-```yaml
-url: /hacsfiles/ha-zigbee-mesh-map/zigbee-mesh-map.js
-type: module
-```
+### Method 2: Manual Installation
+1. Open **HACS** in your Home Assistant.
+2. Click the **three dots (⋮)** in the top right corner and select **Custom repositories**.
+3. Repository: `https://github.com/lubomir-moric/ha-zigbee-mesh-map`
+4. Category: `Lovelace` (or `Plugin`)
+5. Click **Add**, then search for "Zigbee Mesh Map Card" to install.
 
-### Manual Installation
+### Method 3: Manual Installation
 1. Download `zigbee-mesh-map.js` from the [latest release](https://github.com/lubomir-moric/ha-zigbee-mesh-map/releases)
 2. Place it in `/config/www/zigbee-mesh-map/`
 3. Add the resource:
@@ -200,7 +198,18 @@ The card automatically fills the space assigned by HA's grid layout. Use `layout
 
 **Warning banner in the card:**
 - "Entity not found" — check that `entity` matches your sensor's entity ID
-- "Does not contain expected data" — verify your MQTT sensor template outputs `nodes` and `links` arrays
+- "Does not contain expected data"
+  - verify your MQTT sensor template outputs `nodes` and `links` arrays
+  - **After a Home Assistant reboot:** The map entity may be empty. Use the manual refresh button or create an automation to refresh the map data on system startup.
+    ```yaml
+    # Example Automation
+    alias: "Refresh Zigbee Map on Startup"
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - service: script.zigbee_map_refresh
+    ```
 - "Refresh script not found" — create the script or set `refresh_script` to match your script's entity ID
 
 **Testing without real data:**
