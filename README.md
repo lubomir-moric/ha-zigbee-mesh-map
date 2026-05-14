@@ -26,9 +26,13 @@ A modern Lovelace card for Home Assistant that visualizes your Zigbee mesh netwo
 
 Shows direct routing connections — the backbone and device-to-router links.
 
-| Dark theme | Light theme |
-|:---:|:---:|
-| ![Dark theme](media/map-backbone-dark.png) | ![Light theme](media/map-backbone-light.png) |
+**Dark theme**
+
+![Dark theme](media/map-backbone-dark.png)
+
+**Light theme**
+
+![Light theme](media/map-backbone-light.png) |
 
 ### Full mesh view (`link_filter: all`)
 
