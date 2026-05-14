@@ -7,50 +7,62 @@
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map)
 
-Zigbee Mesh Map Card is a modern Lovelace card for Home Assistant that visualizes your Zigbee mesh network from Zigbee2MQTT. It provides an interactive graph, manual refresh, smooth animations, automatic updates when the topology changes, and a clean HA-native UI.
+A modern Lovelace card for Home Assistant that visualizes your Zigbee mesh network from Zigbee2MQTT. Interactive graph with zoom, pan, drag, configurable colors, LQI-based link quality indicators, and automatic updates when the topology changes.
+
+⚠️ **Zigbee2MQTT Only** — this card is not compatible with ZHA or DeCONZ.
 
 ## ✨ Features
 
-- Interactive Zigbee mesh visualization (nodes + links)
+- Interactive force-directed mesh visualization with zoom, pan, and drag
+- Bidirectional LQI (link quality) display on links
+- Color-coded links by signal quality
+- Configurable colors, node sizes, fonts, and simulation parameters
+- LQI threshold filtering to hide weak links
 - Automatic redraw when Zigbee2MQTT publishes a new map
-- Smooth map transition effects
-- Works with any Zigbee2MQTT `networkmap` entity
-- Lightweight, no external dependencies
+- Manual refresh possibility
 
-![Zigbee Mesh Map](media/zigbee-mesh-map.png)
+### Parent-child view (default)
 
-⚠️ **IMPORTANT: Zigbee2MQTT Only**
+Shows direct routing connections — the backbone and device-to-router links.
 
-This card is designed exclusively for use with Zigbee2MQTT. It is not compatible with ZHA or DeCONZ.
+| Dark theme | Light theme |
+|:---:|:---:|
+| ![Dark theme](media/map-backbone-dark.png) | ![Light theme](media/map-backbone-light.png) |
+
+### Full mesh view (`link_filter: all`)
+
+Shows all neighbor/sibling links with the backbone and direct routes emphasised.
+
+![Full mesh](media/map-all.png)
 
 ## 📦 Installation
 
 ### HACS (Custom Repository)
-1. Open HACS – Frontend – Custom repositories
+1. Open HACS → Frontend → Custom repositories
 2. Add:
-- URL: https://github.com/lubomir-moric/ha-zigbee-mesh-map
-- Category: Lovelace
-3. Install Zigbee Mesh Map Card
+   - URL: `https://github.com/lubomir-moric/ha-zigbee-mesh-map`
+   - Category: Lovelace
+3. Install **Zigbee Mesh Map Card**
 4. Add the resource manually if needed:
 
+```yaml
 url: /hacsfiles/ha-zigbee-mesh-map/zigbee-mesh-map.js
 type: module
+```
 
 ### Manual Installation
-1. Download `zigbee-mesh-map.js` from the latest release
-2. Place it in:
-
-```
-/config/www/zigbee-mesh-map/
-```
+1. Download `zigbee-mesh-map.js` from the [latest release](https://github.com/lubomir-moric/ha-zigbee-mesh-map/releases)
+2. Place it in `/config/www/zigbee-mesh-map/`
 3. Add the resource:
 
+```yaml
 url: /local/zigbee-mesh-map/zigbee-mesh-map.js
 type: module
+```
 
 ## 📡 Zigbee Network Map Sensor (Required)
-To use this card, you must expose your Zigbee network map as a Home Assistant sensor.
-If you are using Zigbee2MQTT, add the following sensor to your `configuration.yaml`:
+
+You must expose your Zigbee network map as a Home Assistant sensor. Add the following to your `configuration.yaml`:
 
 ```yaml
 sensor:
@@ -63,7 +75,7 @@ sensor:
     json_attributes_template: "{{ value_json.data.value | tojson }}"
 ```
 
-##  🧩 Usage
+## 🧩 Usage
 
 Add the card to your Lovelace dashboard:
 
@@ -75,18 +87,21 @@ title: Zigbee Mesh
 
 ### 🔄 Refreshing the Map
 
-Define a script in Home Assistant that publishes the Zigbee2MQTT networkmap request (Note: `alias` must be named exactly as shown in example below!):
+Define a script that publishes the Zigbee2MQTT networkmap request. Add this to your `scripts.yaml` (the script key determines the entity ID — `script.zigbee_map_refresh`):
 
 ```yaml
-sequence:
-  - action: mqtt.publish
-    metadata: {}
-    data:
-      topic: zigbee2mqtt/bridge/request/networkmap
-      payload: "{\"type\":\"raw\",\"routes\":false}"
-alias: Zigbee map refresh
+zigbee_map_refresh:
+  alias: Zigbee map refresh
+  sequence:
+    - action: mqtt.publish
+      data:
+        topic: zigbee2mqtt/bridge/request/networkmap
+        payload: '{"type":"raw","routes":false}'
 ```
-Optionally create automation which executes this script e.g. every hour:
+
+Alternatively, create the script via **Settings → Automations & Scenes → Scripts → Add Script** in the HA UI. The entity ID is auto-generated from the script name — check it under **Settings → Devices & Services → Entities** and set `refresh_script` in your card config if it differs from the default `script.zigbee_map_refresh`.
+
+Optionally, create an automation to refresh the map periodically (e.g. every hour):
 
 ```yaml
 alias: "Zigbee: refresh map"
@@ -102,27 +117,100 @@ actions:
 mode: single
 ```
 
-##  🛠 Requirements
+### ⚙️ Full Configuration
+
+All parameters are optional — if omitted, defaults are used:
+
+```yaml
+type: custom:zigbee-mesh-map
+entity: sensor.zigbee2mqtt_networkmap
+refresh_script: script.zigbee_map_refresh
+title: Zigbee Mesh Map
+link_filter: parent-child        # "parent-child" or "all"
+show_lqi_labels: true            # show LQI values on links
+lqi_format: both                 # "both" (XX/YY) or "avg" (single average)
+show_node_labels: true           # show friendly names on nodes
+coordinator_color: "#DB5228"     # coordinator node color
+router_color: "#4A90D9"          # backbone router color (has children)
+router_leaf_color: "#7BAFD4"     # leaf router color (no children)
+end_device_color: "#97B552"      # end device node color
+node_outline_color: "rgba(0,0,0,0.3)"  # "none", "#fff", "gray"
+font_size: 6                     # label font size in pixels
+min_lqi: 0                       # LQI threshold for weak links
+min_lqi_mode: dim                # "dim" (fade weak links) or "remove" (hide them)
+node_radius:
+  coordinator: 10                # coordinator node radius
+  router: 10                     # backbone routers (have children)
+  router_leaf: 6                 # leaf routers (no children)
+  end_device: 4                  # end device node radius
+lqi_colors:
+  200: "#4CAF50"                 # >=200 excellent (green)
+  150: "#FDD835"                 # >=150 good (yellow)
+  100: "#FB8C00"                 # >=100 fair (orange)
+  50: "#F44336"                  # >=50 poor (red)
+  0: "#5F5F5F"                   # <50 very poor (gray)
+zoom:
+  min: 0.2                       # minimum zoom level
+  max: 4                         # maximum zoom level
+  initial: auto                  # "auto" (fit after initial settle) or number (e.g. 1.5)
+link_style:
+  backbone_width: 1.5            # backbone links (between core routers)
+  backbone_opacity: 1
+  backbone_dash: ""              # "" = solid
+  route_width: 0.8               # route links (to leaf routers / end devices)
+  route_opacity: 0.7
+  route_dash: ""
+  neighbor_width: 0.5            # neighbor links (relationship: 2, non-routing)
+  neighbor_opacity: 0.3
+  neighbor_dash: "3,2"           # SVG stroke-dasharray pattern
+  dim_width: 0.5                 # weak link thickness (below min_lqi)
+  dim_opacity: 0.25              # weak link opacity (below min_lqi)
+force_config:
+  link_distance: 30              # ideal link length (higher = more spread)
+  link_strength: 0.8             # how rigidly links hold distance (0–1)
+  charge_strength: -20           # node repulsion (more negative = stronger)
+  collide_radius: 25             # minimum spacing between nodes
+  alpha_decay: 0.04              # simulation cooldown speed (lower = longer settle)
+layout_options:
+  grid_columns: 4                # default card width in grid units
+  grid_rows: 8                   # default card height in grid units
+```
+
+You only need to specify the parameters you want to change. For nested objects (`node_radius`, `lqi_colors`, `force_config`, `zoom`, `layout_options`), partial overrides are supported — unspecified keys keep their defaults.
+
+The card automatically fills the space assigned by HA's grid layout. Use `layout_options` to control the default size, or resize the card directly in the dashboard editor.
+
+## 🛠 Requirements
 
 - Home Assistant 2023.0+
 - Zigbee2MQTT with `networkmap` enabled
 - MQTT integration configured in HA
 
-###  🧪 Troubleshooting
+## 🧪 Troubleshooting
 
-The map does not refresh:
-- Ensure your script publishes `{"type":"graphviz","routes":true}}`
+**The map does not refresh:**
+- Ensure your script publishes `{"type":"raw","routes":false}`
 - Check Zigbee2MQTT logs for map generation errors
-- Verify the entity updates in Developer Tools – States
+- Verify the entity updates in Developer Tools → States
 
-Routing table errors:
+**Routing table errors:**
 - Normal for many Tuya/Telink routers (e.g., TS011F)
 - They do not support routing table queries
 
-##  📄 License
+**Warning banner in the card:**
+- "Entity not found" — check that `entity` matches your sensor's entity ID
+- "Does not contain expected data" — verify your MQTT sensor template outputs `nodes` and `links` arrays
+- "Refresh script not found" — create the script or set `refresh_script` to match your script's entity ID
+
+**Testing without real data:**
+- Add `mock_data: true` to your card config to render with built-in sample data
+- Useful for testing layout, colors, and configuration options without a live Zigbee network
+- Remove `mock_data` when done
+
+## 📄 License
 
 MIT No Attribution (MIT-0)
 
-## ✨ AI‑Generated Project
-This project was created with extensive assistance from AI tools.
-Most of the code, structure, and documentation were generated through iterative AI‑guided development and then manually reviewed, adjusted, and refined.
+## ✨ AI-Generated Project
+
+This project was created with assistance from AI tools. Code and documentation were generated through iterative AI-guided development, then manually reviewed and refined.
