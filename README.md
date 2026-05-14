@@ -1,4 +1,4 @@
-# ha-zigbee-mesh-map
+# Zigbee Mesh Map
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![Release](https://img.shields.io/github/v/release/lubomir-moric/ha-zigbee-mesh-map)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/releases)
@@ -14,6 +14,7 @@ A modern Lovelace card for Home Assistant that visualizes your Zigbee mesh netwo
 ## ✨ Features
 
 - Interactive force-directed mesh visualization with zoom, pan, and drag
+- Click-to-highlight: click any node to dim everything except its direct connections
 - Bidirectional LQI (link quality) display on links
 - Color-coded links by signal quality
 - Configurable colors, node sizes, fonts, and simulation parameters

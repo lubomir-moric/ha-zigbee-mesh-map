@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.1.0";
+const CARD_VERSION = "1.1.1";
 
 const DEFAULTS = {
     link_filter: "parent-child",
@@ -524,22 +524,83 @@ class ZigbeeMeshMapCard extends HTMLElement {
             })
             .attr("stroke", this._opt("node_outline_color"))
             .attr("stroke-width", 1)
+            .style("cursor", "pointer")
             .call(d3.drag()
                 .on("start", e => {
                     if (!e.active) sim.alphaTarget(0.3).restart();
                     e.subject.fx = e.subject.x;
                     e.subject.fy = e.subject.y;
+                    e.subject._dragged = false;
                 })
                 .on("drag", e => {
                     e.subject.fx = e.x;
                     e.subject.fy = e.y;
+                    e.subject._dragged = true;
                 })
                 .on("end", e => {
                     if (!e.active) sim.alphaTarget(0);
                     e.subject.fx = null;
                     e.subject.fy = null;
                 })
-            );
+            )
+            .on("click", (event, d) => {
+                if (d._dragged) return;
+                event.stopPropagation();
+                if (this._highlighted === d.id) {
+                    this._highlighted = null;
+                    resetHighlight();
+                } else {
+                    this._highlighted = d.id;
+                    applyHighlight(d.id);
+                }
+            });
+
+        const connectedIds = (nodeId) => {
+            const ids = new Set([nodeId]);
+            for (const l of links) {
+                const sid = typeof l.source === "object" ? l.source.id : l.source;
+                const tid = typeof l.target === "object" ? l.target.id : l.target;
+                if (sid === nodeId) ids.add(tid);
+                if (tid === nodeId) ids.add(sid);
+            }
+            return ids;
+        };
+
+        const dimOpacity = 0.08;
+
+        const applyHighlight = (nodeId) => {
+            const connected = connectedIds(nodeId);
+            node.transition().duration(200)
+                .attr("opacity", d => connected.has(d.id) ? 1 : dimOpacity);
+            link.transition().duration(200)
+                .attr("opacity", d => {
+                    const sid = typeof d.source === "object" ? d.source.id : d.source;
+                    const tid = typeof d.target === "object" ? d.target.id : d.target;
+                    return (sid === nodeId || tid === nodeId) ? 1 : dimOpacity;
+                });
+            if (text) text.transition().duration(200)
+                .attr("opacity", d => connected.has(d.id) ? 1 : dimOpacity);
+            if (linkLabels) linkLabels.transition().duration(200)
+                .attr("opacity", d => {
+                    const sid = typeof d.source === "object" ? d.source.id : d.source;
+                    const tid = typeof d.target === "object" ? d.target.id : d.target;
+                    return (sid === nodeId || tid === nodeId) ? 1 : dimOpacity;
+                });
+        };
+
+        const resetHighlight = () => {
+            node.transition().duration(200).attr("opacity", 1);
+            link.transition().duration(200).attr("opacity", d =>
+                (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_opacity : tierProp(d, "opacity"));
+            if (text) text.transition().duration(200).attr("opacity", 1);
+            if (linkLabels) linkLabels.transition().duration(200).attr("opacity", d =>
+                (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_opacity : 1);
+        };
+
+        svg.on("click", () => {
+            this._highlighted = null;
+            resetHighlight();
+        });
 
         let linkLabels;
         if (showLqiLabels) {
