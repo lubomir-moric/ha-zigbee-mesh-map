@@ -40,6 +40,7 @@ Shows all neighbor/sibling links with the backbone and direct routes emphasised.
 
 ### Method 1: The Easy Way (Recommended)
 Click the button below to automatically open the repository in HACS:
+
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map&category=plugin)
 
 ### Method 2: Manual Installation
