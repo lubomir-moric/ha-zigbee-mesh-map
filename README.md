@@ -32,7 +32,7 @@ Shows direct routing connections — the backbone and device-to-router links.
 
 **Light theme**
 
-![Light theme](media/map-backbone-light.png) |
+![Light theme](media/map-backbone-light.png)
 
 ### Full mesh view (`link_filter: all`)
 
