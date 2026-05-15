@@ -130,35 +130,45 @@ type: custom:zigbee-mesh-map
 entity: sensor.zigbee2mqtt_networkmap
 refresh_script: script.zigbee_map_refresh
 title: Zigbee Mesh Map
+layout_options:
+  grid_columns: 4                # default card width in grid units
+  grid_rows: 8                   # default card height in grid units
+
+# --- View & layout ---
 link_filter: parent-child        # "parent-child" or "all"
+layout: force                    # "force" or "radial" (parent-child view only)
+
+# --- Display ---
 show_lqi_labels: true            # show LQI values on links
 lqi_format: both                 # "both" (XX/YY) or "avg" (single average)
 show_node_labels: true           # show friendly names on nodes
+font_size: 6                     # label font size in pixels
+
+# --- Colors ---
 coordinator_color: "#DB5228"     # coordinator node color
 router_color: "#4A90D9"          # backbone router color (has children)
 router_leaf_color: "#7BAFD4"     # leaf router color (no children)
 end_device_color: "#97B552"      # end device node color
 node_outline_color: "rgba(0,0,0,0.3)"  # "none", "#fff", "gray"
-font_size: 6                     # label font size in pixels
-min_lqi: 0                       # LQI threshold for weak links
-min_lqi_mode: dim                # "dim" (fade weak links) or "remove" (hide them)
-node_radius:
-  coordinator: 10                # coordinator node radius
-  router: 10                     # backbone routers (have children)
-  router_leaf: 6                 # leaf routers (no children)
-  end_device: 4                  # end device node radius
 lqi_colors:
   200: "#4CAF50"                 # >=200 excellent (green)
   150: "#FDD835"                 # >=150 good (yellow)
   100: "#FB8C00"                 # >=100 fair (orange)
   50: "#F44336"                  # >=50 poor (red)
   0: "#5F5F5F"                   # <50 very poor (gray)
-zoom:
-  min: 0.2                       # minimum zoom level
-  max: 4                         # maximum zoom level
-  initial: auto                  # "auto" (fit after initial settle) or number (e.g. 1.5)
+
+# --- Node sizing ---
+node_radius:
+  coordinator: 10                # coordinator node radius
+  router: 10                     # backbone routers (have children)
+  router_leaf: 6                 # leaf routers (no children)
+  end_device: 4                  # end device node radius
+
+# --- Link quality ---
+min_lqi: 0                       # LQI threshold for weak links
+min_lqi_mode: dim                # "dim" (fade weak links) or "remove" (hide them)
 link_style:
-  backbone_width: 1.5            # backbone links (between core routers)
+  backbone_width: 3.0            # backbone links (between core routers)
   backbone_opacity: 1
   backbone_dash: ""              # "" = solid
   route_width: 0.8               # route links (to leaf routers / end devices)
@@ -169,18 +179,37 @@ link_style:
   neighbor_dash: "3,2"           # SVG stroke-dasharray pattern
   dim_width: 0.5                 # weak link thickness (below min_lqi)
   dim_opacity: 0.25              # weak link opacity (below min_lqi)
+
+# --- Zoom ---
+zoom:
+  min: 0.2                       # minimum zoom level
+  max: 4                         # maximum zoom level
+  initial: auto                  # "auto" (fit after initial settle) or number (e.g. 1.5)
+
+# --- Layout: force ---
 force_config:
   link_distance: 65              # ideal link length (higher = more spread)
   link_strength: 0.6             # how rigidly links hold distance (0–1)
   charge_strength: -80           # node repulsion (more negative = stronger)
   collide_radius: 35             # minimum spacing between nodes
   alpha_decay: 0.03              # simulation cooldown speed (lower = longer settle)
-layout_options:
-  grid_columns: 4                # default card width in grid units
-  grid_rows: 8                   # default card height in grid units
+  all:                           # overrides applied only in "all" view (optional)
+    charge_strength: -120
+    link_distance: 80
+  parent_child:                  # overrides applied only in "parent-child" view (optional)
+    charge_strength: -50
+
+# --- Layout: radial ---
+radial_config:
+  node_spacing: 1.0              # angular spacing between nodes (higher = more spread)
+  level_depth: 80                # radial distance between depth levels (higher = wider rings)
 ```
 
-You only need to specify the parameters you want to change. For nested objects (`node_radius`, `lqi_colors`, `force_config`, `zoom`, `layout_options`), partial overrides are supported — unspecified keys keep their defaults.
+You only need to specify the parameters you want to change. For nested objects (`node_radius`, `lqi_colors`, `force_config`, `radial_config`, `zoom`, `layout_options`), partial overrides are supported — unspecified keys keep their defaults.
+
+`force_config` supports optional `all` and `parent_child` sub-objects. When present, those values override the global force settings for that specific view. If omitted, the global values apply to both views.
+
+Two layout modes are available via `layout` or the toolbar toggle button: `force` (interactive physics simulation) and `radial` (tree radiating from coordinator). Layout selection only applies to the parent-child view — the "all" view always uses the force layout.
 
 The card automatically fills the space assigned by HA's grid layout. Use `layout_options` to control the default size, or resize the card directly in the dashboard editor.
 
