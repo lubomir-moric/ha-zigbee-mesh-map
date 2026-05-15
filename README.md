@@ -1,4 +1,4 @@
-# Zigbee Mesh Map
+# <img src="media/icon.png" width="32" height="32" alt="icon"> Zigbee Mesh Map Card
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![Release](https://img.shields.io/github/v/release/lubomir-moric/ha-zigbee-mesh-map)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/releases)
