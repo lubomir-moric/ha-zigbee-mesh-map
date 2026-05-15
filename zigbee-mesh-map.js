@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.1.1";
+const CARD_VERSION = "1.1.2";
 
 const DEFAULTS = {
     link_filter: "parent-child",
@@ -369,15 +369,39 @@ class ZigbeeMeshMapCard extends HTMLElement {
             type: n.type
         }));
 
+        // Z2M networkmap can contain "phantom" links whose source/target
+        // ieeeAddr does not correspond to any node in `nodes` (e.g. the
+        // broadcast 0xffffffffffffffff, or stale neighbor-table entries
+        // from devices that have left the network). Passing such links
+        // to d3.forceLink().id(...) makes d3-force's force.initialize()
+        // throw "Error: node not found: <addr>", crashing the card and
+        // surfacing only a generic "Configuration error" to the user.
+        // Filter them out and surface the count via console.warn.
+        const validIds = new Set(nodes.map(n => n.id));
+        const droppedLinks = [];
+        const safeRawLinks = rawLinks.filter(l => {
+            const src = l.sourceIeeeAddr || l.source?.ieeeAddr;
+            const tgt = l.targetIeeeAddr || l.target?.ieeeAddr;
+            const ok = src && tgt && validIds.has(src) && validIds.has(tgt);
+            if (!ok) droppedLinks.push({ src, tgt, rel: l.relationship });
+            return ok;
+        });
+        if (droppedLinks.length) {
+            console.warn(
+                `[zigbee-mesh-map] dropped ${droppedLinks.length} link(s) with missing endpoints`,
+                droppedLinks
+            );
+        }
+
         const lqiLookup = new Map();
-        for (const l of rawLinks) {
+        for (const l of safeRawLinks) {
             const src = l.sourceIeeeAddr || l.source?.ieeeAddr;
             const tgt = l.targetIeeeAddr || l.target?.ieeeAddr;
             if (src && tgt) lqiLookup.set(`${src}->${tgt}`, l.lqi);
         }
 
         const parentIds = new Set();
-        for (const l of rawLinks) {
+        for (const l of safeRawLinks) {
             if (l.relationship === 0) {
                 const src = l.sourceIeeeAddr || l.source?.ieeeAddr;
                 if (src) parentIds.add(src);
@@ -397,8 +421,8 @@ class ZigbeeMeshMapCard extends HTMLElement {
         };
 
         const filteredLinks = linkFilter === "all"
-            ? rawLinks
-            : rawLinks.filter(l => l.relationship === 0 || l.relationship === 1);
+            ? safeRawLinks
+            : safeRawLinks.filter(l => l.relationship === 0 || l.relationship === 1);
 
         const linkMap = new Map();
         for (const l of filteredLinks) {
