@@ -170,11 +170,11 @@ link_style:
   dim_width: 0.5                 # weak link thickness (below min_lqi)
   dim_opacity: 0.25              # weak link opacity (below min_lqi)
 force_config:
-  link_distance: 30              # ideal link length (higher = more spread)
-  link_strength: 0.8             # how rigidly links hold distance (0–1)
-  charge_strength: -20           # node repulsion (more negative = stronger)
-  collide_radius: 25             # minimum spacing between nodes
-  alpha_decay: 0.04              # simulation cooldown speed (lower = longer settle)
+  link_distance: 65              # ideal link length (higher = more spread)
+  link_strength: 0.6             # how rigidly links hold distance (0–1)
+  charge_strength: -80           # node repulsion (more negative = stronger)
+  collide_radius: 35             # minimum spacing between nodes
+  alpha_decay: 0.03              # simulation cooldown speed (lower = longer settle)
 layout_options:
   grid_columns: 4                # default card width in grid units
   grid_rows: 8                   # default card height in grid units
@@ -205,16 +205,7 @@ The card automatically fills the space assigned by HA's grid layout. Use `layout
 - "Entity not found" — check that `entity` matches your sensor's entity ID
 - "Does not contain expected data"
   - verify your MQTT sensor template outputs `nodes` and `links` arrays
-  - **After a Home Assistant reboot:** The map entity may be empty. Use the manual refresh button or create an automation to refresh the map data on system startup.
-    ```yaml
-    # Example Automation
-    alias: "Refresh Zigbee Map on Startup"
-    trigger:
-      - platform: homeassistant
-        event: start
-    action:
-      - service: script.zigbee_map_refresh
-    ```
+  - **After a Home Assistant reboot:** The map entity may be empty. The card will automatically request a refresh once — just wait for the data to arrive.
 - "Refresh script not found" — create the script or set `refresh_script` to match your script's entity ID
 
 **Testing without real data:**
