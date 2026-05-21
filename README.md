@@ -69,14 +69,14 @@ type: module
 You must expose your Zigbee network map as a Home Assistant sensor. Add the following to your `configuration.yaml`:
 
 ```yaml
-sensor:
-  - platform: mqtt
-    name: Zigbee2MQTT Network Map
-    state_topic: zigbee2mqtt/bridge/response/networkmap
-    unique_id: zigbee2mqtt_networkmap
-    value_template: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
-    json_attributes_topic: zigbee2mqtt/bridge/response/networkmap
-    json_attributes_template: "{{ value_json.data.value | tojson }}"
+mqtt:
+  sensor:
+    - name: Zigbee2MQTT Network Map
+      state_topic: zigbee2mqtt/bridge/response/networkmap
+      unique_id: zigbee2mqtt_networkmap
+      value_template: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      json_attributes_topic: zigbee2mqtt/bridge/response/networkmap
+      json_attributes_template: "{{ value_json.data.value | tojson }}"
 ```
 
 The network map sensor carries a large JSON payload that Home Assistant will try to record. To avoid the `State attributes exceed maximum size of 16384 bytes` warning and unnecessary database bloat, exclude it from the recorder in your `configuration.yaml`:
