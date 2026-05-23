@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.3.2";
+const CARD_VERSION = "1.3.3";
 
 const DEFAULTS = {
     link_filter: "parent-child",
@@ -366,22 +366,29 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     display: none;
                     position: absolute;
                     top: 4px;
-                    left: 8px;
+                    right: 8px;
                     z-index: 10;
+                    width: 32ch; 
+                    box-sizing: border-box;
+                }
+                .search-bar .search-wrapper {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    width: 100%;
                 }
                 .search-bar.open {
                     display: block;
                 }
                 .search-bar input {
-                    width: 64ch;
-                    max-width: calc(100% - 16px);
+                    width: 100%; 
                     box-sizing: border-box;
-                    padding: 6px 10px;
+                    padding: 10px 36px 10px 14px;
                     border: 1px solid var(--divider-color, #e0e0e0);
                     border-radius: 8px;
                     background: var(--card-background-color, #fff);
                     color: var(--primary-text-color);
-                    font-size: 13px;
+                    font-size: 16px; 
                     outline: none;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
                 }
@@ -395,7 +402,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 }
                 .search-bar .search-clear {
                     position: absolute;
-                    right: 22px;
+                    right: 16px;
                     cursor: pointer;
                     color: var(--secondary-text-color, #999);
                     font-size: 16px;
@@ -477,14 +484,6 @@ class ZigbeeMeshMapCard extends HTMLElement {
         this.shadowRoot.getElementById("reset-zoom-btn").addEventListener("click", () => {
             if (this._fitToContent) this._fitToContent();
         });
-
-        this._onKeyDown = (e) => {
-            if (e.key === "f" || e.key === "F") {
-                if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) return;
-                this._toggleFullscreen();
-            }
-        };
-        document.addEventListener("keydown", this._onKeyDown);
 
         this._linkFilter = this._opt("link_filter");
         this._layout = this._opt("layout");
