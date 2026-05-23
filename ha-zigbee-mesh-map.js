@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.3.3";
+const CARD_VERSION = "1.3.4";
 
 const DEFAULTS = {
     link_filter: "parent-child",
@@ -12,6 +12,7 @@ const DEFAULTS = {
     router_leaf_color: "#7BAFD4",
     end_device_color: "#97B552",
     node_outline_color: "rgba(0,0,0,0.3)",
+    node_highlight_color: "#FFD700",
     lqi_colors: { 200: "#4CAF50", 150: "#FDD835", 100: "#FB8C00", 50: "#F44336", 0: "#5F5F5F" },
     font_size: 6,
     node_radius: { coordinator: 10, router: 10, router_leaf: 6, end_device: 4 },
@@ -848,6 +849,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
         };
 
         const outlineColor = this._opt("node_outline_color");
+        const highlightColor = this._opt("node_highlight_color");
 
         const connectedIds = (nodeId) => {
             const ids = new Set([nodeId]);
@@ -971,7 +973,9 @@ class ZigbeeMeshMapCard extends HTMLElement {
             const applyHighlightSet = (matchIds) => {
                 const connected = connectedIdsMulti(matchIds);
                 node.transition().duration(200)
-                    .attr("opacity", d => connected.has(d.data.id) ? 1 : dimOpacity);
+                    .attr("opacity", d => connected.has(d.data.id) ? 1 : dimOpacity)
+                    .attr("stroke", d => matchIds.has(d.data.id) ? highlightColor : outlineColor)
+                    .attr("stroke-width", d => matchIds.has(d.data.id) ? 2.5 : 1);
                 link.transition().duration(200)
                     .attr("opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity)
                     .attr("stroke-opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity);
@@ -983,7 +987,9 @@ class ZigbeeMeshMapCard extends HTMLElement {
             };
 
             const resetHighlight = () => {
-                node.transition().duration(200).attr("opacity", 1);
+                node.transition().duration(200).attr("opacity", 1)
+                    .attr("stroke", outlineColor)
+                    .attr("stroke-width", 1);
                 link.transition().duration(200)
                     .attr("opacity", 1)
                     .attr("stroke-opacity", d => {
@@ -1140,7 +1146,9 @@ class ZigbeeMeshMapCard extends HTMLElement {
             const applyHighlightSet = (matchIds) => {
                 const connected = connectedIdsMulti(matchIds);
                 node.transition().duration(200)
-                    .attr("opacity", d => connected.has(d.id) ? 1 : dimOpacity);
+                    .attr("opacity", d => connected.has(d.id) ? 1 : dimOpacity)
+                    .attr("stroke", d => matchIds.has(d.id) ? highlightColor : outlineColor)
+                    .attr("stroke-width", d => matchIds.has(d.id) ? 2.5 : 1);
                 link.transition().duration(200)
                     .attr("opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity)
                     .attr("stroke-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity);
@@ -1152,7 +1160,9 @@ class ZigbeeMeshMapCard extends HTMLElement {
             };
 
             const resetHighlight = () => {
-                node.transition().duration(200).attr("opacity", 1);
+                node.transition().duration(200).attr("opacity", 1)
+                    .attr("stroke", outlineColor)
+                    .attr("stroke-width", 1);
                 link.transition().duration(200)
                     .attr("opacity", 1)
                     .attr("stroke-opacity", d =>
