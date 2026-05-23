@@ -165,6 +165,7 @@ router_color: "#4A90D9"          # backbone router color (has children)
 router_leaf_color: "#7BAFD4"     # leaf router color (no children)
 end_device_color: "#97B552"      # end device node color
 node_outline_color: "rgba(0,0,0,0.3)"  # "none", "#fff", "gray"
+node_highlight_color: "#FFD700"        # outline color for search-matched nodes
 lqi_colors:
   200: "#4CAF50"                 # >=200 excellent (green)
   150: "#FDD835"                 # >=150 good (yellow)
