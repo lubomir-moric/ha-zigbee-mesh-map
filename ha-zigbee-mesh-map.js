@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.3.1";
+const CARD_VERSION = "1.3.2";
 
 const DEFAULTS = {
     link_filter: "parent-child",
@@ -45,10 +45,11 @@ const DEFAULTS = {
         neighbor_opacity: 0.6,
         neighbor_dash: "3,2",
         dim_width: 0.5,
-        dim_opacity: 0.1
+        dim_opacity: 0.2
     },
     refresh_script: "script.zigbee_map_refresh",
-    mock_data: false
+    mock_data: false,
+    debug: false
 };
 
 const MOCK_NODES = [
@@ -67,6 +68,7 @@ const MOCK_NODES = [
     { ieeeAddr: "0x00124b000100000c", friendlyName: "Bathroom Bulb", type: "Router" },
     { ieeeAddr: "0x00124b000100000d", friendlyName: "Desk Lamp", type: "Router" },
     { ieeeAddr: "0x00124b000100000e", friendlyName: "Balcony Plug", type: "Router" },
+    { ieeeAddr: "0x00124b000100000f", friendlyName: "Patio Sensor", type: "EndDevice" },
 ];
 const MOCK_LINKS = [
     { sourceIeeeAddr: "0x00124b0001000001", targetIeeeAddr: "0x00124b0001000000", lqi: 210, relationship: 1 },
@@ -122,6 +124,10 @@ const MOCK_LINKS = [
     { sourceIeeeAddr: "0x00124b0001000001", targetIeeeAddr: "0x00124b000100000c", lqi: 115, relationship: 2 },
     { sourceIeeeAddr: "0x00124b000100000d", targetIeeeAddr: "0x00124b000100000a", lqi: 75, relationship: 2 },
     { sourceIeeeAddr: "0x00124b000100000a", targetIeeeAddr: "0x00124b000100000d", lqi: 70, relationship: 2 },
+    // asymmetric link — only one direction reported (Patio Sensor hears Garage Plug, but not vice versa)
+    { sourceIeeeAddr: "0x00124b000100000f", targetIeeeAddr: "0x00124b000100000a", lqi: 140, relationship: 1 },
+    // asymmetric neighbor link — Bathroom Bulb hears Balcony Plug, but not vice versa
+    { sourceIeeeAddr: "0x00124b000100000c", targetIeeeAddr: "0x00124b000100000e", lqi: 95, relationship: 2 },
     // phantom links — endpoints that don't exist in MOCK_NODES (broadcast addr, stale device)
     { sourceIeeeAddr: "0x00124b0001000001", targetIeeeAddr: "0xffffffffffffffff", lqi: 0, relationship: 2 },
     { sourceIeeeAddr: "0xdeadbeefdeadbeef", targetIeeeAddr: "0x00124b0001000002", lqi: 80, relationship: 1 },
@@ -356,6 +362,49 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     background: transparent;
                     border-radius: 12px;
                 }
+                .search-bar {
+                    display: none;
+                    position: absolute;
+                    top: 4px;
+                    left: 8px;
+                    z-index: 10;
+                }
+                .search-bar.open {
+                    display: block;
+                }
+                .search-bar input {
+                    width: 64ch;
+                    max-width: calc(100% - 16px);
+                    box-sizing: border-box;
+                    padding: 6px 10px;
+                    border: 1px solid var(--divider-color, #e0e0e0);
+                    border-radius: 8px;
+                    background: var(--card-background-color, #fff);
+                    color: var(--primary-text-color);
+                    font-size: 13px;
+                    outline: none;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                }
+                .search-bar input:focus {
+                    border-color: var(--primary-color, #03a9f4);
+                }
+                .search-bar .search-wrapper {
+                    position: relative;
+                    display: inline-flex;
+                    align-items: center;
+                }
+                .search-bar .search-clear {
+                    position: absolute;
+                    right: 22px;
+                    cursor: pointer;
+                    color: var(--secondary-text-color, #999);
+                    font-size: 16px;
+                    line-height: 1;
+                    display: none;
+                }
+                .search-bar .search-clear:hover {
+                    color: var(--primary-text-color);
+                }
                 .warning-banner {
                     background: rgba(244, 67, 54, 0.15);
                     border: 1px solid #F44336;
@@ -372,6 +421,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 <div class="card-header">
                     ${this._config.title || "Zigbee Mesh Map"}
                     <span class="header-actions">
+                        <ha-icon id="search-btn" icon="mdi:magnify" class="action-icon" title="Search nodes"></ha-icon>
                         <ha-icon id="layout-btn" icon="${this._layoutIcon(this._config.layout || DEFAULTS.layout)}" class="action-icon" title="Toggle layout" style="${(this._config.link_filter || DEFAULTS.link_filter) === 'all' ? 'display:none' : ''}"></ha-icon>
                         <ha-icon id="link-filter-btn" icon="${(this._config.link_filter || DEFAULTS.link_filter) === 'all' ? 'mdi:web' : 'mdi:family-tree'}" class="action-icon" title="Toggle link filter"></ha-icon>
                         <ha-icon id="reset-zoom-btn" icon="mdi:fit-to-screen-outline" class="action-icon" title="Reset zoom"></ha-icon>
@@ -382,6 +432,12 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 <div class="warning-banner" id="warning-banner"></div>
 
                 <div id="wrapper">
+                    <div class="search-bar" id="search-bar">
+                        <div class="search-wrapper">
+                            <input id="search-input" type="text" placeholder="Search devices…" />
+                            <span id="search-clear" class="search-clear">✕</span>
+                        </div>
+                    </div>
                     <svg id="z2m-svg-canvas"></svg>
                 </div>
 
@@ -467,6 +523,51 @@ class ZigbeeMeshMapCard extends HTMLElement {
             }
         });
 
+        const searchBtn = this.shadowRoot.getElementById("search-btn");
+        const searchBar = this.shadowRoot.getElementById("search-bar");
+        const searchInput = this.shadowRoot.getElementById("search-input");
+        const searchClear = this.shadowRoot.getElementById("search-clear");
+        const updateClearBtn = () => {
+            searchClear.style.display = searchInput.value ? "block" : "none";
+        };
+        searchBtn.addEventListener("click", () => {
+            const open = searchBar.classList.toggle("open");
+            if (open) {
+                searchInput.focus();
+            } else {
+                searchInput.value = "";
+                this._searchQuery = "";
+                updateClearBtn();
+                if (this._applySearchHighlight) this._applySearchHighlight("");
+            }
+        });
+        searchInput.addEventListener("input", () => {
+            this._searchQuery = searchInput.value;
+            updateClearBtn();
+            if (this._applySearchHighlight) this._applySearchHighlight(searchInput.value);
+        });
+        searchClear.addEventListener("click", () => {
+            searchInput.value = "";
+            this._searchQuery = "";
+            updateClearBtn();
+            if (this._applySearchHighlight) this._applySearchHighlight("");
+            searchInput.focus();
+        });
+
+        this._fillSearch = (name) => {
+            searchInput.value = name;
+            this._searchQuery = name;
+            updateClearBtn();
+            if (name) {
+                searchBar.classList.add("open");
+            } else {
+                searchBar.classList.remove("open");
+            }
+            if (this._applySearchHighlight) this._applySearchHighlight(name);
+        };
+
+        this._searchQuery = "";
+        this._applySearchHighlight = null;
         this._lastNodesJson = null;
         this._lastLinksJson = null;
         this._lastUpdated = null;
@@ -595,13 +696,6 @@ class ZigbeeMeshMapCard extends HTMLElement {
             if (!ok) droppedLinks.push({ src, tgt, rel: l.relationship });
             return ok;
         });
-        if (droppedLinks.length) {
-            console.warn(
-                `[zigbee-mesh-map] dropped ${droppedLinks.length} link(s) with missing endpoints`,
-                droppedLinks
-            );
-        }
-
         const lqiLookup = new Map();
         for (const l of safeRawLinks) {
             const src = l.sourceIeeeAddr || l.source?.ieeeAddr;
@@ -642,9 +736,10 @@ class ZigbeeMeshMapCard extends HTMLElement {
             if (!linkMap.has(key)) {
                 const fwdLqi = lqiLookup.get(`${src}->${tgt}`);
                 const revLqi = lqiLookup.get(`${tgt}->${src}`);
+                const hasF = fwdLqi != null, hasR = revLqi != null;
                 let tier = "neighbor";
                 if (isParentChild) tier = isBackboneNode(src) && isBackboneNode(tgt) ? "backbone" : "route";
-                linkMap.set(key, { source: src, target: tgt, lqi: fwdLqi ?? null, lqiReverse: revLqi ?? null, tier });
+                linkMap.set(key, { source: src, target: tgt, lqi: hasF ? fwdLqi : (hasR ? 0 : null), lqiReverse: hasR ? revLqi : (hasF ? 0 : null), tier });
             } else if (isParentChild) {
                 const entry = linkMap.get(key);
                 if (entry.tier === "neighbor") entry.tier = isBackboneNode(src) && isBackboneNode(tgt) ? "backbone" : "route";
@@ -653,7 +748,10 @@ class ZigbeeMeshMapCard extends HTMLElement {
         }
         const minLqi = this._opt("min_lqi");
         const minLqiMode = this._opt("min_lqi_mode");
-        const allLinks = Array.from(linkMap.values());
+        const dedupedLinks = Array.from(linkMap.values());
+        const deadLinks = dedupedLinks.filter(d => d.lqi === 0 && d.lqiReverse === 0);
+        const allLinks = dedupedLinks.filter(d => !(d.lqi === 0 && d.lqiReverse === 0));
+        const asymmetricLinks = allLinks.filter(d => d.lqiReverse != null && (d.lqi === 0 || d.lqiReverse === 0));
         const links = minLqiMode === "remove"
             ? allLinks.filter(d => {
                 if (d.tier !== "neighbor") return true;
@@ -661,6 +759,21 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 return lqi == null || lqi >= minLqi;
             })
             : allLinks;
+        const lqiFilteredCount = allLinks.length - links.length;
+
+        if (this._opt("debug")) {
+            const nByType = { Coordinator: 0, Router: 0, EndDevice: 0 };
+            for (const n of nodes) nByType[n.type] = (nByType[n.type] || 0) + 1;
+            console.info(`[zigbee-mesh-map] render: ${nodes.length} nodes (${nByType.Coordinator}C ${nByType.Router}R ${nByType.EndDevice}E), ${links.length} links displayed`);
+            if (droppedLinks.length)
+                console.warn(`[zigbee-mesh-map] phantom links dropped: ${droppedLinks.length}`, droppedLinks);
+            if (deadLinks.length)
+                console.info(`[zigbee-mesh-map] dead links (0/0) dropped: ${deadLinks.length}`, deadLinks.map(d => `${nodeById.get(d.source)?.friendlyName || d.source} ↔ ${nodeById.get(d.target)?.friendlyName || d.target}`));
+            if (asymmetricLinks.length)
+                console.info(`[zigbee-mesh-map] asymmetric links (one direction missing):`, asymmetricLinks.map(d => `${nodeById.get(d.source)?.friendlyName || d.source} ↔ ${nodeById.get(d.target)?.friendlyName || d.target} (${d.lqi}/${d.lqiReverse})`));
+            if (lqiFilteredCount)
+                console.info(`[zigbee-mesh-map] neighbor links removed by min_lqi (${minLqi}): ${lqiFilteredCount}`);
+        }
 
         const width = 400;
         const height = 400;
@@ -706,11 +819,15 @@ class ZigbeeMeshMapCard extends HTMLElement {
             svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(s));
         };
 
-        const avgLqi = (d) => d.lqiReverse != null ? (d.lqi + d.lqiReverse) / 2 : d.lqi;
+        const effectiveLqi = (d) => {
+            if (d.lqiReverse == null) return d.lqi;
+            if (d.lqi === 0 || d.lqiReverse === 0) return 0;
+            return (d.lqi + d.lqiReverse) / 2;
+        };
 
         const isWeak = (d) => {
             if (d.tier !== "neighbor") return false;
-            const lqi = avgLqi(d);
+            const lqi = effectiveLqi(d);
             return lqi != null && lqi < minLqi;
         };
 
@@ -744,13 +861,32 @@ class ZigbeeMeshMapCard extends HTMLElement {
             return ids;
         };
 
-        const dimOpacity = 0.08;
+        const connectedIdsMulti = (nodeIds) => {
+            const ids = new Set(nodeIds);
+            for (const nid of nodeIds) {
+                for (const l of links) {
+                    const sid = typeof l.source === "object" ? l.source.id : l.source;
+                    const tid = typeof l.target === "object" ? l.target.id : l.target;
+                    if (sid === nid) ids.add(tid);
+                    if (tid === nid) ids.add(sid);
+                }
+            }
+            return ids;
+        };
 
-        const isConnectedLink = (d, nodeId) => {
+        const isConnectedLinkMulti = (d, nodeIds) => {
             const sid = typeof d.source === "object" ? d.source.id : d.source;
             const tid = typeof d.target === "object" ? d.target.id : d.target;
-            return sid === nodeId || tid === nodeId;
+            return nodeIds.has(sid) || nodeIds.has(tid);
         };
+
+        const searchMatchIds = (query) => {
+            if (!query) return null;
+            const q = query.toLowerCase();
+            return new Set(nodes.filter(n => n.friendlyName.toLowerCase().includes(q)).map(n => n.id));
+        };
+
+        const dimOpacity = 0.08;
 
         const labelOffset = (d) => {
             if (d.type === "Coordinator") return -(nodeRadiusCfg.coordinator + 4);
@@ -804,7 +940,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     const key = [d.source.data.id, d.target.data.id].sort().join("-");
                     d._linkData = hierLinkLookup.get(key) || null;
                 })
-                .attr("stroke", d => d._linkData ? this._lqiColor(avgLqi(d._linkData)) : "var(--primary-text-color, #aaa)")
+                .attr("stroke", d => d._linkData ? this._lqiColor(effectiveLqi(d._linkData)) : "var(--primary-text-color, #aaa)")
                 .attr("stroke-width", d => {
                     if (!d._linkData) return linkStyle.route_width;
                     return (minLqiMode === "dim" && isWeak(d._linkData)) ? linkStyle.dim_width : tierProp(d._linkData, "width");
@@ -826,35 +962,25 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 .style("cursor", "pointer")
                 .on("click", (event, d) => {
                     event.stopPropagation();
-                    if (this._highlighted === d.data.id) {
-                        this._highlighted = null;
-                        resetHighlight();
-                    } else {
-                        this._highlighted = d.data.id;
-                        applyHighlight(d.data.id);
-                    }
+                    this._fillSearch(d.data.friendlyName);
                 });
 
-            const applyHighlight = (nodeId) => {
-                const connected = connectedIds(nodeId);
+            const radialLinkTouches = (d, matchIds) => {
+                return matchIds.has(d.source.data.id) || matchIds.has(d.target.data.id);
+            };
+
+            const applyHighlightSet = (matchIds) => {
+                const connected = connectedIdsMulti(matchIds);
                 node.transition().duration(200)
                     .attr("opacity", d => connected.has(d.data.id) ? 1 : dimOpacity);
                 link.transition().duration(200)
-                    .attr("opacity", d => {
-                        return d.source.data.id === nodeId || d.target.data.id === nodeId ? 1 : dimOpacity;
-                    })
-                    .attr("stroke-opacity", d => {
-                        return d.source.data.id === nodeId || d.target.data.id === nodeId ? 1 : dimOpacity;
-                    });
+                    .attr("opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity)
+                    .attr("stroke-opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity);
                 if (text) text.transition().duration(200)
                     .attr("opacity", d => connected.has(d.data.id) ? 1 : dimOpacity);
                 if (linkLabels) linkLabels.transition().duration(200)
-                    .attr("opacity", d => {
-                        return d.source.data.id === nodeId || d.target.data.id === nodeId ? 1 : dimOpacity;
-                    })
-                    .attr("fill-opacity", d => {
-                        return d.source.data.id === nodeId || d.target.data.id === nodeId ? 1 : dimOpacity;
-                    });
+                    .attr("opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity)
+                    .attr("fill-opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity);
             };
 
             const resetHighlight = () => {
@@ -874,9 +1000,23 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     });
             };
 
-            svg.on("click", () => {
+            const dimAll = () => {
+                node.transition().duration(200).attr("opacity", dimOpacity);
+                link.transition().duration(200).attr("opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
+                if (text) text.transition().duration(200).attr("opacity", dimOpacity);
+                if (linkLabels) linkLabels.transition().duration(200).attr("opacity", dimOpacity).attr("fill-opacity", dimOpacity);
+            };
+
+            this._applySearchHighlight = (query) => {
                 this._highlighted = null;
-                resetHighlight();
+                const ids = searchMatchIds(query);
+                if (!ids) { resetHighlight(); return; }
+                if (ids.size === 0) { dimAll(); return; }
+                applyHighlightSet(ids);
+            };
+
+            svg.on("click", () => {
+                this._fillSearch("");
             });
 
             let linkLabels;
@@ -892,7 +1032,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     })
                     .attr("x", d => (toCartesian(d.source).x + toCartesian(d.target).x) / 2)
                     .attr("y", d => (toCartesian(d.source).y + toCartesian(d.target).y) / 2)
-                    .attr("fill", d => d._linkData ? this._lqiColor(avgLqi(d._linkData)) : "var(--primary-text-color, #aaa)")
+                    .attr("fill", d => d._linkData ? this._lqiColor(effectiveLqi(d._linkData)) : "var(--primary-text-color, #aaa)")
                     .attr("fill-opacity", d => {
                         if (!d._linkData) return linkStyle.route_opacity;
                         return (minLqiMode === "dim" && isWeak(d._linkData)) ? linkStyle.dim_opacity : tierProp(d._linkData, "opacity");
@@ -962,7 +1102,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
 
             const link = container.append("g").selectAll("line")
                 .data(links).join("line")
-                .attr("stroke", d => this._lqiColor(avgLqi(d)))
+                .attr("stroke", d => this._lqiColor(effectiveLqi(d)))
                 .attr("stroke-width", d => (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_width : tierProp(d, "width"))
                 .attr("stroke-opacity", d => (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_opacity : tierProp(d, "opacity"))
                 .attr("stroke-dasharray", d => tierProp(d, "dash") || null);
@@ -995,27 +1135,21 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 .on("click", (event, d) => {
                     if (d._dragged) return;
                     event.stopPropagation();
-                    if (this._highlighted === d.id) {
-                        this._highlighted = null;
-                        resetHighlight();
-                    } else {
-                        this._highlighted = d.id;
-                        applyHighlight(d.id);
-                    }
+                    this._fillSearch(d.friendlyName);
                 });
 
-            const applyHighlight = (nodeId) => {
-                const connected = connectedIds(nodeId);
+            const applyHighlightSet = (matchIds) => {
+                const connected = connectedIdsMulti(matchIds);
                 node.transition().duration(200)
                     .attr("opacity", d => connected.has(d.id) ? 1 : dimOpacity);
                 link.transition().duration(200)
-                    .attr("opacity", d => isConnectedLink(d, nodeId) ? 1 : dimOpacity)
-                    .attr("stroke-opacity", d => isConnectedLink(d, nodeId) ? 1 : dimOpacity);
+                    .attr("opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity)
+                    .attr("stroke-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity);
                 if (text) text.transition().duration(200)
                     .attr("opacity", d => connected.has(d.id) ? 1 : dimOpacity);
                 if (linkLabels) linkLabels.transition().duration(200)
-                    .attr("opacity", d => isConnectedLink(d, nodeId) ? 1 : dimOpacity)
-                    .attr("fill-opacity", d => isConnectedLink(d, nodeId) ? 1 : dimOpacity);
+                    .attr("opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity)
+                    .attr("fill-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity);
             };
 
             const resetHighlight = () => {
@@ -1031,9 +1165,23 @@ class ZigbeeMeshMapCard extends HTMLElement {
                         (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_opacity : tierProp(d, "opacity"));
             };
 
-            svg.on("click", () => {
+            const dimAll = () => {
+                node.transition().duration(200).attr("opacity", dimOpacity);
+                link.transition().duration(200).attr("opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
+                if (text) text.transition().duration(200).attr("opacity", dimOpacity);
+                if (linkLabels) linkLabels.transition().duration(200).attr("opacity", dimOpacity).attr("fill-opacity", dimOpacity);
+            };
+
+            this._applySearchHighlight = (query) => {
                 this._highlighted = null;
-                resetHighlight();
+                const ids = searchMatchIds(query);
+                if (!ids) { resetHighlight(); return; }
+                if (ids.size === 0) { dimAll(); return; }
+                applyHighlightSet(ids);
+            };
+
+            svg.on("click", () => {
+                this._fillSearch("");
             });
 
             let linkLabels;
@@ -1046,7 +1194,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
                         if (lqiFormat === "avg") return Math.round((d.lqi + d.lqiReverse) / 2);
                         return `${d.lqi}/${d.lqiReverse}`;
                     })
-                    .attr("fill", d => this._lqiColor(avgLqi(d)))
+                    .attr("fill", d => this._lqiColor(effectiveLqi(d)))
                     .attr("fill-opacity", d => (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_opacity : tierProp(d, "opacity"))
                     .attr("font-size", `${fontSize}px`)
                     .attr("font-weight", "bold")
@@ -1105,6 +1253,10 @@ class ZigbeeMeshMapCard extends HTMLElement {
                         .attr("y", d => (d.source.y + d.target.y) / 2);
                 }
             });
+        }
+
+        if (this._searchQuery && this._applySearchHighlight) {
+            this._applySearchHighlight(this._searchQuery);
         }
     }
 }

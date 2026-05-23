@@ -13,14 +13,20 @@ A modern Lovelace card for Home Assistant that visualizes your Zigbee mesh netwo
 
 ## ✨ Features
 
-- Interactive force-directed mesh visualization with zoom, pan, and drag
-- Click-to-highlight: click any node to dim everything except its direct connections
-- Bidirectional LQI (link quality) display on links
-- Color-coded links by signal quality
-- Configurable colors, node sizes, fonts, and simulation parameters
-- LQI threshold filtering to hide weak links
-- Automatic redraw when Zigbee2MQTT publishes a new map
-- Manual refresh possibility
+- Interactive force-directed and radial tree layouts with zoom, pan, and drag
+- Device search with fulltext matching and click-to-highlight
+- Bidirectional LQI display with color-coded signal quality
+- Parent-child and full mesh views switchable from the toolbar
+- Asymmetric and weak link detection
+- Fully configurable colors, sizing, and layout parameters
+
+### Search & highlight
+
+Click the 🔍 icon in the toolbar to open the search bar. Type to filter devices by friendly name — all matching nodes and their direct links are highlighted while the rest of the map dims. If nothing matches, the entire map dims.
+
+Clicking a node fills the search bar with its name and highlights its connections. Clicking the map background clears the search and restores the full view. The ✕ button inside the search bar clears the text without closing it.
+
+![Search](media/map-search.png)
 
 ### Parent-child view (default)
 
@@ -187,7 +193,7 @@ link_style:
   neighbor_opacity: 0.6
   neighbor_dash: "3,2"           # SVG stroke-dasharray pattern
   dim_width: 0.5                 # weak link thickness (below min_lqi)
-  dim_opacity: 0.1               # weak link opacity (below min_lqi)
+  dim_opacity: 0.2               # weak link opacity (below min_lqi)
 
 # --- Zoom ---
 zoom:
@@ -250,6 +256,10 @@ The card automatically fills the space assigned by HA's grid layout. Use `layout
 - Add `mock_data: true` to your card config to render with built-in sample data
 - Useful for testing layout, colors, and configuration options without a live Zigbee network
 - Remove `mock_data` when done
+
+**Debug logging:**
+- Add `debug: true` to your card config to enable verbose console output (dropped links, etc.)
+- Open browser Developer Tools → Console to see the messages
 
 ## 📄 License
 
