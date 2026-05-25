@@ -16,7 +16,7 @@ A modern Lovelace card for Home Assistant that visualizes your Zigbee mesh netwo
 - Interactive force-directed and radial tree layouts with zoom, pan, and drag
 - Device search with fulltext matching and click-to-highlight
 - Bidirectional LQI display with color-coded signal quality
-- Parent-child and full mesh views switchable from the toolbar
+- Three view modes switchable from the footer: radial tree, force graph, and full mesh
 - Asymmetric and weak link detection
 - Fully configurable colors, sizing, and layout parameters
 
@@ -153,6 +153,14 @@ layout_options:
 link_filter: parent-child        # "parent-child" or "all"
 layout: force                    # "force" or "radial" (parent-child view only)
 
+# --- Footer controls ---
+show_modes: true                 # show/hide the entire mode switcher
+show_mode_force: true            # show force-layout mode icon
+show_mode_radial: true           # show radial-layout mode icon
+show_mode_all: true              # show all-links mode icon
+show_lqi_slider: true            # show min LQI slider (only visible in "all" view)
+lqi_slider_step: 10              # slider snap increment (1–255)
+
 # --- Display ---
 show_lqi_labels: true            # show LQI values on links
 lqi_format: both                 # "both" (XX/YY) or "avg" (single average)
@@ -225,7 +233,7 @@ You only need to specify the parameters you want to change. For nested objects (
 
 `force_config` supports optional `all` and `parent_child` sub-objects. When present, those values override the global force settings for that specific view. If omitted, the global values apply to both views.
 
-Two layout modes are available via `layout` or the toolbar toggle button: `force` (interactive physics simulation) and `radial` (tree radiating from coordinator). Layout selection only applies to the parent-child view — the "all" view always uses the force layout.
+Three view modes are available via the footer icons: **radial** (tree radiating from coordinator), **force** (interactive physics simulation), and **all** (full mesh with all neighbor links, force layout). The initial mode is determined by `layout` and `link_filter`. Set `show_mode_force`, `show_mode_radial`, or `show_mode_all` to `false` to hide individual mode icons.
 
 The card automatically fills the space assigned by HA's grid layout. Use `layout_options` to control the default size, or resize the card directly in the dashboard editor.
 

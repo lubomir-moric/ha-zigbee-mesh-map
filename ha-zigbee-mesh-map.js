@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.3.4";
+const CARD_VERSION = "1.3.5";
 
 const DEFAULTS = {
     link_filter: "parent-child",
@@ -48,6 +48,12 @@ const DEFAULTS = {
         dim_width: 0.5,
         dim_opacity: 0.2
     },
+    show_modes: true,
+    show_mode_force: true,
+    show_mode_radial: true,
+    show_mode_all: true,
+    show_lqi_slider: true,
+    lqi_slider_step: 10,
     refresh_script: "script.zigbee_map_refresh",
     mock_data: false,
     debug: false
@@ -284,12 +290,96 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     padding-top: 4px;
                     display: flex;
                     align-items: center;
-                    justify-content: flex-end;
+                    justify-content: space-between;
+                    gap: 4px;
+                    flex-wrap: wrap;
+                }
+                .footer-right {
+                    display: inline-flex;
+                    align-items: center;
                     gap: 4px;
                     cursor: pointer;
+                    margin-left: auto;
                 }
-                .footer:hover {
+                .footer-right:hover {
                     opacity: 0.9;
+                }
+                .mode-switcher {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 2px;
+                }
+                .mode-icon {
+                    cursor: pointer;
+                    color: var(--primary-text-color);
+                    opacity: 0.4;
+                    width: 20px;
+                    height: 20px;
+                    --mdc-icon-size: 20px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: opacity 0.2s;
+                }
+                .mode-icon:hover {
+                    opacity: 0.7;
+                }
+                .mode-icon.active {
+                    opacity: 1;
+                    color: var(--primary-color, #03a9f4);
+                }
+                .lqi-slider {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    flex: 1;
+                    min-width: 0;
+                    max-width: 320px;
+                    margin: 0 8px;
+                }
+                .lqi-slider label {
+                    font-size: 11px;
+                    white-space: nowrap;
+                    min-width: 42px;
+                    text-align: right;
+                }
+                .lqi-slider .lqi-step-btn {
+                    cursor: pointer;
+                    user-select: none;
+                    font-size: 11px;
+                    line-height: 1;
+                    opacity: 0.5;
+                    padding: 0 2px;
+                }
+                .lqi-slider .lqi-step-btn:hover {
+                    opacity: 1;
+                }
+                .lqi-slider input[type="range"] {
+                    flex: 1;
+                    min-width: 0;
+                    height: 3px;
+                    -webkit-appearance: none;
+                    appearance: none;
+                    background: var(--divider-color, #444);
+                    border-radius: 2px;
+                    outline: none;
+                    cursor: pointer;
+                }
+                .lqi-slider input[type="range"]::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: var(--primary-color, #03a9f4);
+                    cursor: pointer;
+                }
+                .lqi-slider input[type="range"]::-moz-range-thumb {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    border: none;
+                    background: var(--primary-color, #03a9f4);
+                    cursor: pointer;
                 }
                 .header-actions {
                     display: inline-flex;
@@ -423,6 +513,14 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     color: var(--primary-text-color);
                     display: none;
                 }
+                @media (max-width: 500px) {
+                    .lqi-slider {
+                        order: -1;
+                        flex: 0 0 100%;
+                        max-width: none;
+                        margin: 0 0 2px 0;
+                    }
+                }
             </style>
 
             <ha-card>
@@ -430,8 +528,6 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     ${this._config.title || "Zigbee Mesh Map"}
                     <span class="header-actions">
                         <ha-icon id="search-btn" icon="mdi:magnify" class="action-icon" title="Search nodes"></ha-icon>
-                        <ha-icon id="layout-btn" icon="${this._layoutIcon(this._config.layout || DEFAULTS.layout)}" class="action-icon" title="Toggle layout" style="${(this._config.link_filter || DEFAULTS.link_filter) === 'all' ? 'display:none' : ''}"></ha-icon>
-                        <ha-icon id="link-filter-btn" icon="${(this._config.link_filter || DEFAULTS.link_filter) === 'all' ? 'mdi:web' : 'mdi:family-tree'}" class="action-icon" title="Toggle link filter"></ha-icon>
                         <ha-icon id="reset-zoom-btn" icon="mdi:fit-to-screen-outline" class="action-icon" title="Reset zoom"></ha-icon>
                         <ha-icon id="fullscreen-btn" icon="mdi:fullscreen" class="action-icon"></ha-icon>
                     </span>
@@ -450,20 +546,34 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 </div>
 
                 <div class="footer" id="footer">
-                    <span id="timestamp"></span>
-                    <ha-icon id="refresh-btn" icon="mdi:refresh" class="refresh-icon"></ha-icon>
+                    <span class="mode-switcher" id="mode-switcher">
+                        <ha-icon id="mode-radial" icon="mdi:sitemap-outline" class="mode-icon" title="Radial layout"></ha-icon>
+                        <ha-icon id="mode-force" icon="mdi:graph-outline" class="mode-icon" title="Force layout"></ha-icon>
+                        <ha-icon id="mode-all" icon="mdi:web" class="mode-icon" title="All links"></ha-icon>
+                    </span>
+                    <span class="lqi-slider" id="lqi-slider">
+                        <label id="lqi-label">Min LQI: ${this._opt("min_lqi")}</label>
+                        <span id="lqi-step-down" class="lqi-step-btn">&lt;</span>
+                        <input id="lqi-range" type="range" min="0" max="${Math.ceil(255 / this._opt("lqi_slider_step")) * this._opt("lqi_slider_step")}" step="${this._opt("lqi_slider_step")}" value="${this._opt("min_lqi")}" />
+                        <span id="lqi-step-up" class="lqi-step-btn">&gt;</span>
+                        <span id="lqi-reset" class="lqi-step-btn" title="Reset to default">↺</span>
+                    </span>
+                    <span class="footer-right" id="footer-right">
+                        <span id="timestamp"></span>
+                        <ha-icon id="refresh-btn" icon="mdi:refresh" class="refresh-icon"></ha-icon>
+                    </span>
                 </div>
             </ha-card>
         `;
 
         const refreshScript = this._opt("refresh_script");
         const useMock = this._opt("mock_data");
-        const footer = this.shadowRoot.getElementById("footer");
+        const footerRight = this.shadowRoot.getElementById("footer-right");
         if (useMock) {
-            footer.style.cursor = "default";
+            footerRight.style.cursor = "default";
             this.shadowRoot.getElementById("refresh-btn").style.display = "none";
         } else {
-            footer.addEventListener("click", () => {
+            footerRight.addEventListener("click", () => {
                 const icon = this.shadowRoot.getElementById("refresh-btn");
                 icon.classList.add("spin");
                 setTimeout(() => icon.classList.remove("spin"), 1000);
@@ -489,35 +599,80 @@ class ZigbeeMeshMapCard extends HTMLElement {
         this._linkFilter = this._opt("link_filter");
         this._layout = this._opt("layout");
 
-        const layoutBtn = this.shadowRoot.getElementById("layout-btn");
-        const updateLayoutBtnVisibility = () => {
-            layoutBtn.style.display = this._linkFilter === "all" ? "none" : "";
-        };
-        updateLayoutBtnVisibility();
+        const modes = [
+            { id: "mode-force", filter: "parent-child", layout: "force", cfg: "show_mode_force" },
+            { id: "mode-radial", filter: "parent-child", layout: "radial", cfg: "show_mode_radial" },
+            { id: "mode-all", filter: "all", layout: "force", cfg: "show_mode_all" },
+        ];
+        const modeIcons = modes.map(m => this.shadowRoot.getElementById(m.id));
 
-        this._savedLayout = null;
-        this.shadowRoot.getElementById("link-filter-btn").addEventListener("click", () => {
-            this._linkFilter = this._linkFilter === "all" ? "parent-child" : "all";
-            const btn = this.shadowRoot.getElementById("link-filter-btn");
-            btn.icon = this._linkFilter === "all" ? "mdi:web" : "mdi:family-tree";
-            if (this._linkFilter === "all") {
-                this._savedLayout = this._layout;
-                this._layout = "force";
-                layoutBtn.icon = this._layoutIcon("force");
-            } else if (this._savedLayout) {
-                this._layout = this._savedLayout;
-                layoutBtn.icon = this._layoutIcon(this._layout);
-                this._savedLayout = null;
+        if (!this._opt("show_modes")) {
+            this.shadowRoot.getElementById("mode-switcher").style.display = "none";
+        } else {
+            for (let i = 0; i < modes.length; i++) {
+                if (!this._opt(modes[i].cfg)) modeIcons[i].style.display = "none";
             }
-            updateLayoutBtnVisibility();
+        }
+
+        const updateModeHighlight = () => {
+            for (let i = 0; i < modes.length; i++) {
+                const active = this._linkFilter === modes[i].filter && this._layout === modes[i].layout;
+                modeIcons[i].classList.toggle("active", active);
+            }
+        };
+        updateModeHighlight();
+
+        const switchMode = (mode) => {
+            this._linkFilter = mode.filter;
+            this._layout = mode.layout;
+            updateModeHighlight();
+            if (this._updateLqiSliderVisibility) this._updateLqiSliderVisibility();
+            if (this._lastRawNodes && this._lastRawLinks) {
+                this.renderZigbeeMap(this._lastRawNodes, this._lastRawLinks);
+            }
+        };
+
+        modes.forEach((mode, i) => {
+            modeIcons[i].addEventListener("click", () => switchMode(mode));
+        });
+
+        this._minLqi = this._opt("min_lqi");
+        const lqiSlider = this.shadowRoot.getElementById("lqi-slider");
+        const lqiRange = this.shadowRoot.getElementById("lqi-range");
+        const lqiLabel = this.shadowRoot.getElementById("lqi-label");
+
+        this._updateLqiSliderVisibility = () => {
+            lqiSlider.style.display = (this._opt("show_lqi_slider") && this._linkFilter === "all") ? "" : "none";
+        };
+        this._updateLqiSliderVisibility();
+
+        lqiRange.addEventListener("input", () => {
+            lqiLabel.textContent = `Min LQI: ${Math.min(255, lqiRange.value)}`;
+        });
+        lqiRange.addEventListener("change", () => {
+            this._minLqi = Math.min(255, Number(lqiRange.value));
             if (this._lastRawNodes && this._lastRawLinks) {
                 this.renderZigbeeMap(this._lastRawNodes, this._lastRawLinks);
             }
         });
 
-        layoutBtn.addEventListener("click", () => {
-            this._layout = this._layout === "force" ? "radial" : "force";
-            layoutBtn.icon = this._layoutIcon(this._layout);
+        const lqiStep = this._opt("lqi_slider_step");
+        const stepSlider = (delta) => {
+            const newVal = Math.max(0, Math.min(Number(lqiRange.max), Number(lqiRange.value) + delta));
+            lqiRange.value = newVal;
+            this._minLqi = Math.min(255, newVal);
+            lqiLabel.textContent = `Min LQI: ${this._minLqi}`;
+            if (this._lastRawNodes && this._lastRawLinks) {
+                this.renderZigbeeMap(this._lastRawNodes, this._lastRawLinks);
+            }
+        };
+        this.shadowRoot.getElementById("lqi-step-down").addEventListener("click", () => stepSlider(-lqiStep));
+        this.shadowRoot.getElementById("lqi-step-up").addEventListener("click", () => stepSlider(lqiStep));
+        this.shadowRoot.getElementById("lqi-reset").addEventListener("click", () => {
+            const def = this._opt("min_lqi");
+            lqiRange.value = def;
+            this._minLqi = def;
+            lqiLabel.textContent = `Min LQI: ${def}`;
             if (this._lastRawNodes && this._lastRawLinks) {
                 this.renderZigbeeMap(this._lastRawNodes, this._lastRawLinks);
             }
@@ -568,8 +723,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
 
         this._searchQuery = "";
         this._applySearchHighlight = null;
-        this._lastNodesJson = null;
-        this._lastLinksJson = null;
+        this._lastDataKey = null;
         this._lastUpdated = null;
         this._simulation = null;
         this._autoRefreshAttempted = false;
@@ -651,12 +805,10 @@ class ZigbeeMeshMapCard extends HTMLElement {
 
         const nodes = useMock ? MOCK_NODES : (entity.attributes.nodes || []);
         const links = useMock ? MOCK_LINKS : (entity.attributes.links || []);
-        const nodesJson = JSON.stringify(nodes);
-        const linksJson = JSON.stringify(links);
+        const dataKey = useMock ? "mock" : entity.last_updated;
 
-        if (nodesJson !== this._lastNodesJson || linksJson !== this._lastLinksJson) {
-            this._lastNodesJson = nodesJson;
-            this._lastLinksJson = linksJson;
+        if (dataKey !== this._lastDataKey) {
+            this._lastDataKey = dataKey;
             this._lastRawNodes = nodes;
             this._lastRawLinks = links;
             this.renderZigbeeMap(nodes, links);
@@ -683,6 +835,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
         const nodes = rawNodes.map(n => ({
             id: n.ieeeAddr,
             friendlyName: n.friendlyName,
+            friendlyNameLower: n.friendlyName.toLowerCase(),
             type: n.type
         }));
 
@@ -746,7 +899,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 else if (entry.tier === "route" && isBackboneNode(src) && isBackboneNode(tgt)) entry.tier = "backbone";
             }
         }
-        const minLqi = this._opt("min_lqi");
+        const minLqi = this._minLqi != null ? this._minLqi : this._opt("min_lqi");
         const minLqiMode = this._opt("min_lqi_mode");
         const dedupedLinks = Array.from(linkMap.values());
         const deadLinks = dedupedLinks.filter(d => d.lqi === 0 && d.lqiReverse === 0);
@@ -851,40 +1004,32 @@ class ZigbeeMeshMapCard extends HTMLElement {
         const outlineColor = this._opt("node_outline_color");
         const highlightColor = this._opt("node_highlight_color");
 
-        const connectedIds = (nodeId) => {
-            const ids = new Set([nodeId]);
-            for (const l of links) {
-                const sid = typeof l.source === "object" ? l.source.id : l.source;
-                const tid = typeof l.target === "object" ? l.target.id : l.target;
-                if (sid === nodeId) ids.add(tid);
-                if (tid === nodeId) ids.add(sid);
-            }
-            return ids;
-        };
+        const adjacency = new Map();
+        for (const n of nodes) adjacency.set(n.id, []);
+        for (const l of links) {
+            const sid = l.source.id ?? l.source;
+            const tid = l.target.id ?? l.target;
+            adjacency.get(sid)?.push(tid);
+            adjacency.get(tid)?.push(sid);
+        }
 
         const connectedIdsMulti = (nodeIds) => {
             const ids = new Set(nodeIds);
             for (const nid of nodeIds) {
-                for (const l of links) {
-                    const sid = typeof l.source === "object" ? l.source.id : l.source;
-                    const tid = typeof l.target === "object" ? l.target.id : l.target;
-                    if (sid === nid) ids.add(tid);
-                    if (tid === nid) ids.add(sid);
-                }
+                const neighbors = adjacency.get(nid);
+                if (neighbors) for (const nb of neighbors) ids.add(nb);
             }
             return ids;
         };
 
         const isConnectedLinkMulti = (d, nodeIds) => {
-            const sid = typeof d.source === "object" ? d.source.id : d.source;
-            const tid = typeof d.target === "object" ? d.target.id : d.target;
-            return nodeIds.has(sid) || nodeIds.has(tid);
+            return nodeIds.has(d.source.id ?? d.source) || nodeIds.has(d.target.id ?? d.target);
         };
 
         const searchMatchIds = (query) => {
             if (!query) return null;
             const q = query.toLowerCase();
-            return new Set(nodes.filter(n => n.friendlyName.toLowerCase().includes(q)).map(n => n.id));
+            return new Set(nodes.filter(n => n.friendlyNameLower.includes(q)).map(n => n.id));
         };
 
         const dimOpacity = 0.08;
@@ -973,43 +1118,49 @@ class ZigbeeMeshMapCard extends HTMLElement {
             const applyHighlightSet = (matchIds) => {
                 const connected = connectedIdsMulti(matchIds);
                 node.transition().duration(200)
-                    .attr("opacity", d => connected.has(d.data.id) ? 1 : dimOpacity)
+                    .attr("fill-opacity", d => connected.has(d.data.id) ? 1 : dimOpacity)
                     .attr("stroke", d => matchIds.has(d.data.id) ? highlightColor : outlineColor)
+                    .attr("stroke-opacity", d => matchIds.has(d.data.id) ? 1 : (connected.has(d.data.id) ? 1 : dimOpacity))
                     .attr("stroke-width", d => matchIds.has(d.data.id) ? 2.5 : 1);
                 link.transition().duration(200)
-                    .attr("opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity)
                     .attr("stroke-opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity);
                 if (text) text.transition().duration(200)
-                    .attr("opacity", d => connected.has(d.data.id) ? 1 : dimOpacity);
+                    .attr("fill-opacity", d => connected.has(d.data.id) ? 1 : dimOpacity)
+                    .attr("stroke-opacity", d => connected.has(d.data.id) ? 1 : dimOpacity);
                 if (linkLabels) linkLabels.transition().duration(200)
-                    .attr("opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity)
-                    .attr("fill-opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity);
+                    .attr("fill-opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity)
+                    .attr("stroke-opacity", d => radialLinkTouches(d, matchIds) ? 1 : dimOpacity);
             };
 
             const resetHighlight = () => {
-                node.transition().duration(200).attr("opacity", 1)
+                node.transition().duration(200)
+                    .attr("fill-opacity", 1)
                     .attr("stroke", outlineColor)
+                    .attr("stroke-opacity", 1)
                     .attr("stroke-width", 1);
                 link.transition().duration(200)
-                    .attr("opacity", 1)
                     .attr("stroke-opacity", d => {
                         if (!d._linkData) return linkStyle.route_opacity;
                         return (minLqiMode === "dim" && isWeak(d._linkData)) ? linkStyle.dim_opacity : tierProp(d._linkData, "opacity");
                     });
-                if (text) text.transition().duration(200).attr("opacity", 1);
+                if (text) text.transition().duration(200)
+                    .attr("fill-opacity", 1).attr("stroke-opacity", 1);
                 if (linkLabels) linkLabels.transition().duration(200)
-                    .attr("opacity", 1)
                     .attr("fill-opacity", d => {
+                        if (!d._linkData) return linkStyle.route_opacity;
+                        return (minLqiMode === "dim" && isWeak(d._linkData)) ? linkStyle.dim_opacity : tierProp(d._linkData, "opacity");
+                    })
+                    .attr("stroke-opacity", d => {
                         if (!d._linkData) return linkStyle.route_opacity;
                         return (minLqiMode === "dim" && isWeak(d._linkData)) ? linkStyle.dim_opacity : tierProp(d._linkData, "opacity");
                     });
             };
 
             const dimAll = () => {
-                node.transition().duration(200).attr("opacity", dimOpacity);
-                link.transition().duration(200).attr("opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
-                if (text) text.transition().duration(200).attr("opacity", dimOpacity);
-                if (linkLabels) linkLabels.transition().duration(200).attr("opacity", dimOpacity).attr("fill-opacity", dimOpacity);
+                node.transition().duration(200).attr("fill-opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
+                link.transition().duration(200).attr("stroke-opacity", dimOpacity);
+                if (text) text.transition().duration(200).attr("fill-opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
+                if (linkLabels) linkLabels.transition().duration(200).attr("fill-opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
             };
 
             this._applySearchHighlight = (query) => {
@@ -1033,7 +1184,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
                         if (d._linkData.lqiReverse == null) return d._linkData.lqi;
                         const lqiFormat = this._opt("lqi_format");
                         if (lqiFormat === "avg") return Math.round((d._linkData.lqi + d._linkData.lqiReverse) / 2);
-                        return `${d._linkData.lqi}/${d._linkData.lqiReverse}`;
+                        return `${d._linkData.lqi || "--"}/${d._linkData.lqiReverse || "--"}`;
                     })
                     .attr("x", d => (toCartesian(d.source).x + toCartesian(d.target).x) / 2)
                     .attr("y", d => (toCartesian(d.source).y + toCartesian(d.target).y) / 2)
@@ -1146,39 +1297,43 @@ class ZigbeeMeshMapCard extends HTMLElement {
             const applyHighlightSet = (matchIds) => {
                 const connected = connectedIdsMulti(matchIds);
                 node.transition().duration(200)
-                    .attr("opacity", d => connected.has(d.id) ? 1 : dimOpacity)
+                    .attr("fill-opacity", d => connected.has(d.id) ? 1 : dimOpacity)
                     .attr("stroke", d => matchIds.has(d.id) ? highlightColor : outlineColor)
+                    .attr("stroke-opacity", d => matchIds.has(d.id) ? 1 : (connected.has(d.id) ? 1 : dimOpacity))
                     .attr("stroke-width", d => matchIds.has(d.id) ? 2.5 : 1);
                 link.transition().duration(200)
-                    .attr("opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity)
                     .attr("stroke-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity);
                 if (text) text.transition().duration(200)
-                    .attr("opacity", d => connected.has(d.id) ? 1 : dimOpacity);
+                    .attr("fill-opacity", d => connected.has(d.id) ? 1 : dimOpacity)
+                    .attr("stroke-opacity", d => connected.has(d.id) ? 1 : dimOpacity);
                 if (linkLabels) linkLabels.transition().duration(200)
-                    .attr("opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity)
-                    .attr("fill-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity);
+                    .attr("fill-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity)
+                    .attr("stroke-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity);
             };
 
             const resetHighlight = () => {
-                node.transition().duration(200).attr("opacity", 1)
+                node.transition().duration(200)
+                    .attr("fill-opacity", 1)
                     .attr("stroke", outlineColor)
+                    .attr("stroke-opacity", 1)
                     .attr("stroke-width", 1);
                 link.transition().duration(200)
-                    .attr("opacity", 1)
                     .attr("stroke-opacity", d =>
                         (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_opacity : tierProp(d, "opacity"));
-                if (text) text.transition().duration(200).attr("opacity", 1);
+                if (text) text.transition().duration(200)
+                    .attr("fill-opacity", 1).attr("stroke-opacity", 1);
                 if (linkLabels) linkLabels.transition().duration(200)
-                    .attr("opacity", 1)
                     .attr("fill-opacity", d =>
+                        (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_opacity : tierProp(d, "opacity"))
+                    .attr("stroke-opacity", d =>
                         (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_opacity : tierProp(d, "opacity"));
             };
 
             const dimAll = () => {
-                node.transition().duration(200).attr("opacity", dimOpacity);
-                link.transition().duration(200).attr("opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
-                if (text) text.transition().duration(200).attr("opacity", dimOpacity);
-                if (linkLabels) linkLabels.transition().duration(200).attr("opacity", dimOpacity).attr("fill-opacity", dimOpacity);
+                node.transition().duration(200).attr("fill-opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
+                link.transition().duration(200).attr("stroke-opacity", dimOpacity);
+                if (text) text.transition().duration(200).attr("fill-opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
+                if (linkLabels) linkLabels.transition().duration(200).attr("fill-opacity", dimOpacity).attr("stroke-opacity", dimOpacity);
             };
 
             this._applySearchHighlight = (query) => {
@@ -1201,7 +1356,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
                         if (d.lqiReverse == null) return d.lqi;
                         const lqiFormat = this._opt("lqi_format");
                         if (lqiFormat === "avg") return Math.round((d.lqi + d.lqiReverse) / 2);
-                        return `${d.lqi}/${d.lqiReverse}`;
+                        return `${d.lqi || "--"}/${d.lqiReverse || "--"}`;
                     })
                     .attr("fill", d => this._lqiColor(effectiveLqi(d)))
                     .attr("fill-opacity", d => (minLqiMode === "dim" && isWeak(d)) ? linkStyle.dim_opacity : tierProp(d, "opacity"))
@@ -1248,18 +1403,29 @@ class ZigbeeMeshMapCard extends HTMLElement {
             }
 
             sim.on("tick", () => {
-                link
-                    .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-                node
-                    .attr("cx", d => d.x).attr("cy", d => d.y);
+                link.each(function(d) {
+                    this.setAttribute("x1", d.source.x);
+                    this.setAttribute("y1", d.source.y);
+                    this.setAttribute("x2", d.target.x);
+                    this.setAttribute("y2", d.target.y);
+                });
+                node.each(function(d) {
+                    this.setAttribute("cx", d.x);
+                    this.setAttribute("cy", d.y);
+                });
                 if (text) {
-                    text.attr("x", d => d.x).attr("y", d => d.y);
+                    text.each(function(d) {
+                        this.setAttribute("x", d.x);
+                        this.setAttribute("y", d.y);
+                    });
                 }
                 if (linkLabels) {
-                    linkLabels
-                        .attr("x", d => (d.source.x + d.target.x) / 2)
-                        .attr("y", d => (d.source.y + d.target.y) / 2);
+                    linkLabels.each(function(d) {
+                        const mx = (d.source.x + d.target.x) / 2;
+                        const my = (d.source.y + d.target.y) / 2;
+                        this.setAttribute("x", mx);
+                        this.setAttribute("y", my);
+                    });
                 }
             });
         }
