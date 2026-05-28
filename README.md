@@ -149,9 +149,8 @@ grid_options:
   columns: 12                    # default card width (1–12, or "full")
   rows: 8                        # default card height in grid units
 
-# --- View & layout ---
-link_filter: parent-child        # "parent-child" or "all"
-layout: force                    # "force" or "radial" (parent-child view only)
+# --- View mode ---
+view_mode: force                 # "force", "radial", or "all"
 
 # --- Footer controls ---
 show_modes: true                 # show/hide the entire mode switcher
@@ -235,7 +234,7 @@ You only need to specify the parameters you want to change. For nested objects (
 
 `force_config` supports optional `all` and `parent_child` sub-objects. When present, those values override the global force settings for that specific view. If omitted, the global values apply to both views.
 
-Three view modes are available via the footer icons: **radial** (tree radiating from coordinator), **force** (interactive physics simulation), and **all** (full mesh with all neighbor links, force layout). The initial mode is determined by `layout` and `link_filter`. Set `show_mode_force`, `show_mode_radial`, or `show_mode_all` to `false` to hide individual mode icons.
+Three view modes are available via the footer icons: **radial** (tree radiating from coordinator), **force** (interactive physics simulation), and **all** (full mesh with all neighbor links, force layout). The initial mode is set by `view_mode`. Set `show_mode_force`, `show_mode_radial`, or `show_mode_all` to `false` to hide individual mode icons.
 
 The card automatically fills the space assigned by HA's grid layout. Use `grid_options` to control the default size, or resize the card directly in the dashboard editor.
 

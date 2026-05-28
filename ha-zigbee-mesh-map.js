@@ -1,9 +1,9 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.3.6";
+const CARD_VERSION = "1.3.7";
 
 const DEFAULTS = {
-    link_filter: "parent-child",
+    view_mode: "force",
     show_lqi_labels: true,
     lqi_format: "both",
     show_node_labels: true,
@@ -21,7 +21,6 @@ const DEFAULTS = {
         max: 4,
         initial: "auto"
     },
-    layout: "force",
     force_config: {
         link_distance: 65,
         link_strength: 0.6,
@@ -106,7 +105,7 @@ const MOCK_LINKS = [
     { sourceIeeeAddr: "0x00124b0001000001", targetIeeeAddr: "0x00124b000100000d", lqi: 105, relationship: 0 },
     { sourceIeeeAddr: "0x00124b000100000e", targetIeeeAddr: "0x00124b0001000000", lqi: 75, relationship: 1 },
     { sourceIeeeAddr: "0x00124b0001000000", targetIeeeAddr: "0x00124b000100000e", lqi: 70, relationship: 0 },
-    // sibling/neighbor links (relationship: 2) — only visible with link_filter: all
+    // sibling/neighbor links (relationship: 2) — only visible with view_mode: all
     { sourceIeeeAddr: "0x00124b0001000001", targetIeeeAddr: "0x00124b0001000002", lqi: 160, relationship: 2 },
     { sourceIeeeAddr: "0x00124b0001000002", targetIeeeAddr: "0x00124b0001000001", lqi: 155, relationship: 2 },
     { sourceIeeeAddr: "0x00124b0001000003", targetIeeeAddr: "0x00124b0001000004", lqi: 80, relationship: 2 },
@@ -149,6 +148,17 @@ class ZigbeeMeshMapCard extends HTMLElement {
             return { ...DEFAULTS[key], ...val };
         }
         return val;
+    }
+
+    static _VIEW_MODE_MAP = {
+        force:  { filter: "parent-child", layout: "force" },
+        radial: { filter: "parent-child", layout: "radial" },
+        all:    { filter: "all",          layout: "force" },
+    };
+
+    _resolveViewMode() {
+        const mode = this._config?.view_mode || this._opt("view_mode");
+        return ZigbeeMeshMapCard._VIEW_MODE_MAP[mode] ? mode : "force";
     }
 
     _forceConfigForView(view) {
@@ -606,8 +616,10 @@ class ZigbeeMeshMapCard extends HTMLElement {
             if (this._fitToContent) this._fitToContent();
         });
 
-        this._linkFilter = this._opt("link_filter");
-        this._layout = this._opt("layout");
+        const initialMode = this._resolveViewMode();
+        const modeMapping = ZigbeeMeshMapCard._VIEW_MODE_MAP[initialMode];
+        this._linkFilter = modeMapping.filter;
+        this._layout = modeMapping.layout;
 
         const modes = [
             { id: "mode-force", filter: "parent-child", layout: "force", cfg: "show_mode_force" },
@@ -837,7 +849,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
         const endDeviceColor = this._opt("end_device_color");
         const fontSize = this._opt("font_size");
         const nodeRadiusCfg = this._opt("node_radius");
-        const linkFilter = this._linkFilter || this._opt("link_filter");
+        const linkFilter = this._linkFilter;
         const forceCfg = this._forceConfigForView(linkFilter);
         const showLqiLabels = this._opt("show_lqi_labels");
         const showNodeLabels = this._opt("show_node_labels");
@@ -1051,7 +1063,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
             return -(nodeRadiusCfg.router + 4);
         };
 
-        const layout = this._layout || this._opt("layout");
+        const layout = this._layout;
 
         if (layout === "radial") {
             const root = this._buildHierarchy(nodes, safeRawLinks);
