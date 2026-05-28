@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.3.5";
+const CARD_VERSION = "1.3.6";
 
 const DEFAULTS = {
     link_filter: "parent-child",
@@ -247,11 +247,21 @@ class ZigbeeMeshMapCard extends HTMLElement {
         return 5;
     }
 
-    getLayoutOptions() {
-        const layout = this._config?.layout_options || {};
+    getGridOptions() {
+        const g = this._config?.grid_options || this._config?.layout_options || {};
         return {
-            grid_columns: layout.grid_columns ?? 4,
-            grid_rows: layout.grid_rows ?? 8,
+            columns: g.columns ?? g.grid_columns ?? 12,
+            rows: g.rows ?? g.grid_rows ?? 8,
+            min_columns: 6,
+            min_rows: 4,
+        };
+    }
+
+    getLayoutOptions() {
+        const layout = this._config?.layout_options || this._config?.grid_options || {};
+        return {
+            grid_columns: layout.grid_columns ?? layout.columns ?? 4,
+            grid_rows: layout.grid_rows ?? layout.rows ?? 8,
         };
     }
 

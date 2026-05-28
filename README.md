@@ -145,9 +145,9 @@ type: custom:zigbee-mesh-map
 entity: sensor.zigbee2mqtt_networkmap
 refresh_script: script.zigbee_map_refresh
 title: Zigbee Mesh Map
-layout_options:
-  grid_columns: 4                # default card width in grid units
-  grid_rows: 8                   # default card height in grid units
+grid_options:
+  columns: 12                    # default card width (1–12, or "full")
+  rows: 8                        # default card height in grid units
 
 # --- View & layout ---
 link_filter: parent-child        # "parent-child" or "all"
@@ -229,13 +229,15 @@ radial_config:
   level_depth: 80                # radial distance between depth levels (higher = wider rings)
 ```
 
-You only need to specify the parameters you want to change. For nested objects (`node_radius`, `lqi_colors`, `force_config`, `radial_config`, `zoom`, `layout_options`), partial overrides are supported — unspecified keys keep their defaults.
+You only need to specify the parameters you want to change. For nested objects (`node_radius`, `lqi_colors`, `force_config`, `radial_config`, `zoom`, `grid_options`), partial overrides are supported — unspecified keys keep their defaults.
+
+> **Note:** `layout_options` (with `grid_columns` / `grid_rows`) still works on older HA versions. On HA 2024.x+ Sections dashboards, use `grid_options` with `columns` / `rows`.
 
 `force_config` supports optional `all` and `parent_child` sub-objects. When present, those values override the global force settings for that specific view. If omitted, the global values apply to both views.
 
 Three view modes are available via the footer icons: **radial** (tree radiating from coordinator), **force** (interactive physics simulation), and **all** (full mesh with all neighbor links, force layout). The initial mode is determined by `layout` and `link_filter`. Set `show_mode_force`, `show_mode_radial`, or `show_mode_all` to `false` to hide individual mode icons.
 
-The card automatically fills the space assigned by HA's grid layout. Use `layout_options` to control the default size, or resize the card directly in the dashboard editor.
+The card automatically fills the space assigned by HA's grid layout. Use `grid_options` to control the default size, or resize the card directly in the dashboard editor.
 
 ---
 
