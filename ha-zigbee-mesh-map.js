@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.3.7";
+const CARD_VERSION = "1.4.0";
 
 const DEFAULTS = {
     view_mode: "force",
@@ -260,7 +260,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
     getGridOptions() {
         const g = this._config?.grid_options || this._config?.layout_options || {};
         return {
-            columns: g.columns ?? g.grid_columns ?? 12,
+            columns: g.columns ?? g.grid_columns ?? "full",
             rows: g.rows ?? g.grid_rows ?? 8,
             min_columns: 6,
             min_rows: 4,
@@ -270,7 +270,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
     getLayoutOptions() {
         const layout = this._config?.layout_options || this._config?.grid_options || {};
         return {
-            grid_columns: layout.grid_columns ?? layout.columns ?? 4,
+            grid_columns: layout.grid_columns ?? layout.columns ?? "full",
             grid_rows: layout.grid_rows ?? layout.rows ?? 8,
         };
     }
@@ -533,6 +533,39 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     color: var(--primary-text-color);
                     display: none;
                 }
+                .star-pill {
+                    display: none;
+                    position: absolute;
+                    top: 4px;
+                    left: 8px;
+                    z-index: 10;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 5px 10px;
+                    border-radius: 16px;
+                    background: var(--primary-color, #03a9f4);
+                    color: #fff;
+                    font-size: 12px;
+                    font-weight: 500;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+                    white-space: nowrap;
+                    max-width: calc(100% - 16px);
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .star-pill.visible {
+                    display: inline-flex;
+                }
+                .star-pill-close {
+                    cursor: pointer;
+                    opacity: 0.8;
+                    font-size: 14px;
+                    line-height: 1;
+                    margin-left: 2px;
+                }
+                .star-pill-close:hover {
+                    opacity: 1;
+                }
                 @media (max-width: 500px) {
                     .lqi-slider {
                         order: -1;
@@ -556,6 +589,10 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 <div class="warning-banner" id="warning-banner"></div>
 
                 <div id="wrapper">
+                    <div class="star-pill" id="star-pill">
+                        <span>★ <span id="star-pill-name"></span></span>
+                        <span class="star-pill-close" id="star-pill-close">✕</span>
+                    </div>
                     <div class="search-bar" id="search-bar">
                         <div class="search-wrapper">
                             <input id="search-input" type="text" placeholder="Search devices…" />
@@ -627,6 +664,15 @@ class ZigbeeMeshMapCard extends HTMLElement {
             { id: "mode-all", filter: "all", layout: "force", cfg: "show_mode_all" },
         ];
         const modeIcons = modes.map(m => this.shadowRoot.getElementById(m.id));
+        const starPill = this.shadowRoot.getElementById("star-pill");
+        const starPillName = this.shadowRoot.getElementById("star-pill-name");
+        const starPillClose = this.shadowRoot.getElementById("star-pill-close");
+
+        this._starNodeId = null;
+        this._starNodeName = null;
+        this._lastClickedNodeId = null;
+        this._preStarFilter = null;
+        this._preStarLayout = null;
 
         if (!this._opt("show_modes")) {
             this.shadowRoot.getElementById("mode-switcher").style.display = "none";
@@ -638,16 +684,70 @@ class ZigbeeMeshMapCard extends HTMLElement {
 
         const updateModeHighlight = () => {
             for (let i = 0; i < modes.length; i++) {
-                const active = this._linkFilter === modes[i].filter && this._layout === modes[i].layout;
+                const active = !this._starNodeId && this._linkFilter === modes[i].filter && this._layout === modes[i].layout;
                 modeIcons[i].classList.toggle("active", active);
             }
         };
         updateModeHighlight();
 
+        const updateStarPill = () => {
+            if (this._starNodeId) {
+                starPillName.textContent = this._starNodeName || this._starNodeId;
+                starPill.classList.add("visible");
+            } else {
+                starPill.classList.remove("visible");
+            }
+        };
+
+        const exitStarMode = () => {
+            if (!this._starNodeId) return;
+            this._starNodeId = null;
+            this._starNodeName = null;
+            this._lastClickedNodeId = null;
+            if (this._preStarFilter) this._linkFilter = this._preStarFilter;
+            if (this._preStarLayout) this._layout = this._preStarLayout;
+            this._preStarFilter = null;
+            this._preStarLayout = null;
+            updateModeHighlight();
+            updateStarPill();
+            if (this._updateLqiSliderVisibility) this._updateLqiSliderVisibility();
+            this._fillSearch("");
+            if (this._lastRawNodes && this._lastRawLinks) {
+                this.renderZigbeeMap(this._lastRawNodes, this._lastRawLinks);
+            }
+        };
+        this._enterStarMode = (nodeId, nodeName) => {
+            if (!this._starNodeId) {
+                this._preStarFilter = this._linkFilter;
+                this._preStarLayout = this._layout;
+            }
+            const svgEl = this.shadowRoot.querySelector("#z2m-svg-canvas");
+            if (this._starNodeId && svgEl) {
+                this._starZoomTransform = d3.zoomTransform(svgEl);
+            } else {
+                this._starZoomTransform = null;
+            }
+            this._starNodeId = nodeId;
+            this._starNodeName = nodeName;
+            this._linkFilter = "all";
+            this._layout = "force";
+            updateModeHighlight();
+            updateStarPill();
+            if (this._updateLqiSliderVisibility) this._updateLqiSliderVisibility();
+            this._fillSearch("");
+            if (this._lastRawNodes && this._lastRawLinks) {
+                this.renderZigbeeMap(this._lastRawNodes, this._lastRawLinks);
+            }
+        };
+
         const switchMode = (mode) => {
+            this._starNodeId = null;
+            this._starNodeName = null;
+            this._lastClickedNodeId = null;
             this._linkFilter = mode.filter;
             this._layout = mode.layout;
             updateModeHighlight();
+            updateStarPill();
             if (this._updateLqiSliderVisibility) this._updateLqiSliderVisibility();
             if (this._lastRawNodes && this._lastRawLinks) {
                 this.renderZigbeeMap(this._lastRawNodes, this._lastRawLinks);
@@ -657,6 +757,8 @@ class ZigbeeMeshMapCard extends HTMLElement {
         modes.forEach((mode, i) => {
             modeIcons[i].addEventListener("click", () => switchMode(mode));
         });
+
+        starPillClose.addEventListener("click", () => exitStarMode());
 
         this._minLqi = this._opt("min_lqi");
         const lqiSlider = this.shadowRoot.getElementById("lqi-slider");
@@ -742,6 +844,14 @@ class ZigbeeMeshMapCard extends HTMLElement {
             }
             if (this._applySearchHighlight) this._applySearchHighlight(name);
         };
+
+        if (this._onKeyDown) document.removeEventListener("keydown", this._onKeyDown);
+        this._onKeyDown = (e) => {
+            if (e.key === "Escape" && this._starNodeId) {
+                exitStarMode();
+            }
+        };
+        document.addEventListener("keydown", this._onKeyDown);
 
         this._searchQuery = "";
         this._applySearchHighlight = null;
@@ -936,6 +1046,32 @@ class ZigbeeMeshMapCard extends HTMLElement {
             : allLinks;
         const lqiFilteredCount = allLinks.length - links.length;
 
+        const effectiveLqi = (d) => {
+            if (d.lqiReverse == null) return d.lqi;
+            if (d.lqi === 0 || d.lqiReverse === 0) return 0;
+            return (d.lqi + d.lqiReverse) / 2;
+        };
+
+        if (this._starNodeId && nodeById.has(this._starNodeId)) {
+            const starId = this._starNodeId;
+            const starLinks = allLinks.filter(l => l.source === starId || l.target === starId);
+            const keepLinks = minLqiMode === "remove"
+                ? starLinks.filter(l => { const lqi = effectiveLqi(l); return lqi == null || lqi >= minLqi; })
+                : starLinks;
+            const starNeighbourIds = new Set([starId]);
+            for (const l of keepLinks) {
+                if (l.source === starId) starNeighbourIds.add(l.target);
+                else starNeighbourIds.add(l.source);
+            }
+            const filteredNodes = nodes.filter(n => starNeighbourIds.has(n.id));
+            nodes.length = 0;
+            for (const n of filteredNodes) nodes.push(n);
+            links.length = 0;
+            for (const l of keepLinks) links.push(l);
+            nodeById.clear();
+            for (const n of nodes) nodeById.set(n.id, n);
+        }
+
         if (this._opt("debug")) {
             const nByType = { Coordinator: 0, Router: 0, EndDevice: 0 };
             for (const n of nodes) nByType[n.type] = (nByType[n.type] || 0) + 1;
@@ -967,7 +1103,11 @@ class ZigbeeMeshMapCard extends HTMLElement {
             .on("zoom", (event) => container.attr("transform", event.transform));
 
         svg.call(zoom);
-        if (zoomCfg.initial !== "auto") {
+        const savedStarZoom = this._starZoomTransform;
+        this._starZoomTransform = null;
+        if (savedStarZoom) {
+            svg.call(zoom.transform, savedStarZoom);
+        } else if (zoomCfg.initial !== "auto") {
             const s = zoomCfg.initial;
             svg.call(zoom.transform, d3.zoomIdentity.translate(width * (1 - s) / 2, height * (1 - s) / 2).scale(s));
         }
@@ -994,14 +1134,8 @@ class ZigbeeMeshMapCard extends HTMLElement {
             svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(s));
         };
 
-        const effectiveLqi = (d) => {
-            if (d.lqiReverse == null) return d.lqi;
-            if (d.lqi === 0 || d.lqiReverse === 0) return 0;
-            return (d.lqi + d.lqiReverse) / 2;
-        };
-
         const isWeak = (d) => {
-            if (d.tier !== "neighbor") return false;
+            if (!this._starNodeId && d.tier !== "neighbor") return false;
             const lqi = effectiveLqi(d);
             return lqi != null && lqi < minLqi;
         };
@@ -1127,9 +1261,17 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 .attr("fill", d => nodeFill(d.data))
                 .attr("stroke", outlineColor)
                 .attr("stroke-width", 1)
-                .style("cursor", "pointer")
+                .style("cursor", this._starNodeId ? "zoom-in" : "pointer")
+                .attr("title", this._starNodeId ? "Click for ★ view" : null)
                 .on("click", (event, d) => {
                     event.stopPropagation();
+                    if (this._starNodeId || this._lastClickedNodeId === d.data.id) {
+                        this._enterStarMode(d.data.id, d.data.friendlyName);
+                        return;
+                    }
+                    this._lastClickedNodeId = d.data.id;
+                    node.style("cursor", "pointer").attr("title", null);
+                    d3.select(event.currentTarget).style("cursor", "zoom-in").attr("title", "Click again for ★ view");
                     this._fillSearch(d.data.friendlyName);
                 });
 
@@ -1194,6 +1336,9 @@ class ZigbeeMeshMapCard extends HTMLElement {
             };
 
             svg.on("click", () => {
+                if (this._starNodeId) return;
+                this._lastClickedNodeId = null;
+                node.style("cursor", "pointer").attr("title", null);
                 this._fillSearch("");
             });
 
@@ -1291,7 +1436,8 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 .attr("fill", nodeFill)
                 .attr("stroke", outlineColor)
                 .attr("stroke-width", 1)
-                .style("cursor", "pointer")
+                .style("cursor", this._starNodeId ? "zoom-in" : "pointer")
+                .attr("title", this._starNodeId ? "Click for ★ view" : null)
                 .call(d3.drag()
                     .on("start", e => {
                         if (!e.active) sim.alphaTarget(0.3).restart();
@@ -1313,24 +1459,36 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 .on("click", (event, d) => {
                     if (d._dragged) return;
                     event.stopPropagation();
+                    if (this._starNodeId || this._lastClickedNodeId === d.id) {
+                        this._enterStarMode(d.id, d.friendlyName);
+                        return;
+                    }
+                    this._lastClickedNodeId = d.id;
+                    node.style("cursor", "pointer").attr("title", null);
+                    d3.select(event.currentTarget).style("cursor", "zoom-in").attr("title", "Click again for ★ view");
                     this._fillSearch(d.friendlyName);
                 });
 
             const applyHighlightSet = (matchIds) => {
                 const connected = connectedIdsMulti(matchIds);
+                const weakDim = (d) => minLqiMode === "dim" && isWeak(d);
+                const weakNodeIds = this._starNodeId ? new Set(
+                    links.filter(weakDim).flatMap(d => [d.source.id ?? d.source, d.target.id ?? d.target])
+                ) : null;
+                const isWeakNode = (id) => weakNodeIds && weakNodeIds.has(id) && !matchIds.has(id);
                 node.transition().duration(200)
-                    .attr("fill-opacity", d => connected.has(d.id) ? 1 : dimOpacity)
+                    .attr("fill-opacity", d => isWeakNode(d.id) ? linkStyle.dim_opacity : (connected.has(d.id) ? 1 : dimOpacity))
                     .attr("stroke", d => matchIds.has(d.id) ? highlightColor : outlineColor)
                     .attr("stroke-opacity", d => matchIds.has(d.id) ? 1 : (connected.has(d.id) ? 1 : dimOpacity))
                     .attr("stroke-width", d => matchIds.has(d.id) ? 2.5 : 1);
                 link.transition().duration(200)
-                    .attr("stroke-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity);
+                    .attr("stroke-opacity", d => weakDim(d) ? linkStyle.dim_opacity : (isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity));
                 if (text) text.transition().duration(200)
                     .attr("fill-opacity", d => connected.has(d.id) ? 1 : dimOpacity)
                     .attr("stroke-opacity", d => connected.has(d.id) ? 1 : dimOpacity);
                 if (linkLabels) linkLabels.transition().duration(200)
-                    .attr("fill-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity)
-                    .attr("stroke-opacity", d => isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity);
+                    .attr("fill-opacity", d => weakDim(d) ? linkStyle.dim_opacity : (isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity))
+                    .attr("stroke-opacity", d => weakDim(d) ? linkStyle.dim_opacity : (isConnectedLinkMulti(d, matchIds) ? 1 : dimOpacity));
             };
 
             const resetHighlight = () => {
@@ -1367,6 +1525,9 @@ class ZigbeeMeshMapCard extends HTMLElement {
             };
 
             svg.on("click", () => {
+                if (this._starNodeId) return;
+                this._lastClickedNodeId = null;
+                node.style("cursor", "pointer").attr("title", null);
                 this._fillSearch("");
             });
 
@@ -1413,7 +1574,7 @@ class ZigbeeMeshMapCard extends HTMLElement {
 
             if (zoomCfg.initial === "auto") {
                 this._fitToContent = () => fitToContent(nodes);
-                let initialFitDone = false;
+                let initialFitDone = savedStarZoom;
                 sim.on("end", () => {
                     if (!initialFitDone) {
                         initialFitDone = true;
@@ -1452,7 +1613,9 @@ class ZigbeeMeshMapCard extends HTMLElement {
             });
         }
 
-        if (this._searchQuery && this._applySearchHighlight) {
+        if (this._starNodeId && this._applySearchHighlight) {
+            this._applySearchHighlight(this._starNodeName || "");
+        } else if (this._searchQuery && this._applySearchHighlight) {
             this._applySearchHighlight(this._searchQuery);
         }
     }

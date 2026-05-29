@@ -15,6 +15,7 @@ A modern Lovelace card for Home Assistant that visualizes your Zigbee mesh netwo
 
 - Interactive force-directed and radial tree layouts with zoom, pan, and drag
 - Device search with fulltext matching and click-to-highlight
+- **Star view** — click a highlighted node again to isolate it and its direct neighbours, then single-click to navigate between stars
 - Bidirectional LQI display with color-coded signal quality
 - Three view modes switchable from the footer: radial tree, force graph, and full mesh
 - Asymmetric and weak link detection
@@ -45,6 +46,18 @@ Shows direct routing connections — the backbone and device-to-router links.
 Shows all neighbor/sibling links with the backbone and direct routes emphasised.
 
 ![Full mesh](media/map-all.png)
+
+### Star view
+
+Click a highlighted node a second time (or click any node while already in star mode) to enter **star view** — only the selected node and its direct neighbours are rendered, with all other nodes and links removed. The cursor changes to 🔍 zoom-in on actionable nodes as a visual hint.
+
+A breadcrumb pill (`★ Node Name ✕`) appears at the top-left. Click any neighbour to navigate to its star view (zoom level is preserved). Exit by clicking the ✕ on the pill, pressing Escape, or switching to another view mode.
+
+Star view respects `min_lqi` and `min_lqi_mode`: in **remove** mode, weak links and their orphaned nodes are hidden; in **dim** mode, they remain visible but faded.
+
+![Star view](media/map-star.png)
+
+> **Use case:** Planning to re-pair a device to a different router? Open star view on the device to see all its current neighbours and their link qualities at a glance — then click each candidate router to compare its own neighbourhood and signal strengths before deciding where to re-pair the device.
 
 ## 📦 Installation
 
@@ -146,7 +159,7 @@ entity: sensor.zigbee2mqtt_networkmap
 refresh_script: script.zigbee_map_refresh
 title: Zigbee Mesh Map
 grid_options:
-  columns: 12                    # default card width (1–12, or "full")
+  columns: full                  # default card width (1–12, or "full")
   rows: 8                        # default card height in grid units
 
 # --- View mode ---
