@@ -17,10 +17,23 @@ filter:
         active: true
         name: |
           {# ======= CONFIGURATION ======= #}
+          {% set networkmap = 'sensor.zigbee2mqtt_networkmap' %}
           {% set suffix = 'Linkquality' %}
           {# ============================= #}
+          {% set nodes = state_attr(networkmap, 'nodes') or [] %}
           {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity) | string %}
-          {{ fname | replace(' ' ~ suffix, '') | replace(suffix, '') | replace(' ' ~ suffix | lower, '') | replace(suffix | lower, '') }}
+          {% set my_name = fname | replace(' ' ~ suffix, '') | replace(suffix, '') | replace(' ' ~ suffix | lower, '') | replace(suffix | lower, '') | trim %}
+          {% set ns = namespace(dev_icon='🔌') %}
+          {% if nodes %}
+            {% for node in nodes %}
+              {% if node.friendlyName == my_name %}
+                {% if node.definition is defined and node.definition.supports is defined and 'battery' in node.definition.supports %}
+                  {% set ns.dev_icon = '🔋' %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ ns.dev_icon }} {{ my_name }}
         state: >
           {# ======= CONFIGURATION ======= #}
           {% set networkmap = 'sensor.zigbee2mqtt_networkmap' %}
@@ -30,21 +43,29 @@ filter:
           {% set links = state_attr(networkmap, 'links') or [] %} 
           {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity) | string %}
           {% set my_name = fname | replace(' ' ~ suffix, '') | replace(suffix, '') | replace(' ' ~ suffix | lower, '') | replace(suffix | lower, '') | trim %} 
-          {% set ns = namespace(my_ieee=none, down='--', up='--', has_connection=false) %} 
+          {% set ns = namespace(my_ieee=none, down='--', up='--', is_child=false) %} 
           {% if nodes and links %}
             {% for node in nodes %}{% if node.friendlyName == my_name %}{% set ns.my_ieee = node.ieeeAddr %}{% endif %}{% endfor %}
             {% if ns.my_ieee %}
+              {# Try locating either a direct router link (relationship 0) or a child end-device link (relationship 1) #}
               {% set p_link = links | selectattr('targetIeeeAddr', 'eq', ns.my_ieee) | selectattr('relationship', 'eq', 0) | first | default(none) %}
               {% if p_link %}
                 {% set ns.down = p_link.lqi %}
                 {% set up_link = links | selectattr('sourceIeeeAddr', 'eq', ns.my_ieee) | selectattr('targetIeeeAddr', 'eq', p_link.sourceIeeeAddr) | first | default(none) %}
                 {% if up_link %}
                   {% set ns.up = up_link.lqi %}
-                  {% set ns.has_connection = true %}
+                {% endif %}
+              {% else %}
+                {# If no router link is found, see if it is a battery/end-device connecting to a parent #}
+                {% set c_link = links | selectattr('sourceIeeeAddr', 'eq', ns.my_ieee) | selectattr('relationship', 'eq', 1) | first | default(none) %}
+                {% if c_link %}
+                  {% set ns.down = c_link.lqi %}
+                  {% set ns.is_child = true %}
                 {% endif %}
               {% endif %}
             {% endif %}
-          {% endif %} {{ ns.down }} / {{ ns.up }}
+          {% endif %}
+          {% if ns.is_child %}{{ ns.down }}{% else %}{{ ns.down }} / {{ ns.up }}{% endif %}
         secondary: >
           {# ======= CONFIGURATION ======= #}
           {% set networkmap = 'sensor.zigbee2mqtt_networkmap' %}
@@ -56,19 +77,28 @@ filter:
           {% set links = state_attr(networkmap, 'links') or [] %} 
           {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity) | string %}
           {% set my_name = fname | replace(' ' ~ suffix, '') | replace(suffix, '') | replace(' ' ~ suffix | lower, '') | replace(suffix | lower, '') | trim %} 
-          {% set coord_lqi = states(config.entity) %} 
-          {% set ns = namespace(my_ieee=none, p_name=text_not_found) %} 
+          {% set ns = namespace(my_ieee=none, p_name=text_not_found, parent_lqi='--', parent_ieee=none) %} 
           {% if nodes and links %}
             {% for node in nodes %}{% if node.friendlyName == my_name %}{% set ns.my_ieee = node.ieeeAddr %}{% endif %}{% endfor %}
             {% if ns.my_ieee %}
               {% set p_link = links | selectattr('targetIeeeAddr', 'eq', ns.my_ieee) | selectattr('relationship', 'eq', 0) | first | default(none) %}
               {% if p_link %}
-                {% for node in nodes %}{% if node.ieeeAddr == p_link.sourceIeeeAddr %}
+                {% set ns.parent_ieee = p_link.sourceIeeeAddr %}
+                {% set ns.parent_lqi = p_link.lqi %}
+              {% else %}
+                {% set c_link = links | selectattr('sourceIeeeAddr', 'eq', ns.my_ieee) | selectattr('relationship', 'eq', 1) | first | default(none) %}
+                {% if c_link %}
+                  {% set ns.parent_ieee = c_link.targetIeeeAddr %}
+                  {% set ns.parent_lqi = c_link.lqi %}
+                {% endif %}
+              {% endif %}
+              {% if ns.parent_ieee %}
+                {% for node in nodes %}{% if node.ieeeAddr == ns.parent_ieee %}
                   {% set ns.p_name = text_coordinator if node.type == 'Coordinator' else node.friendlyName %}
                 {% endif %}{% endfor %}
               {% endif %}
             {% endif %}
-          {% endif %} 📡 {{ coord_lqi }} ⬆️ {{ ns.p_name }}
+          {% endif %} 📡 {{ ns.parent_lqi }} ⬆️ {{ ns.p_name }}
         icon: >
           {# ======= CONFIGURATION ======= #}
           {% set networkmap = 'sensor.zigbee2mqtt_networkmap' %}
@@ -87,6 +117,11 @@ filter:
                 {% set up_link = links | selectattr('sourceIeeeAddr', 'eq', ns.my_ieee) | selectattr('targetIeeeAddr', 'eq', p_link.sourceIeeeAddr) | first | default(none) %}
                 {% if up_link %}
                   {% set ns.avg = (p_link.lqi + up_link.lqi) / 2 %}
+                {% endif %}
+              {% else %}
+                {% set c_link = links | selectattr('sourceIeeeAddr', 'eq', ns.my_ieee) | selectattr('relationship', 'eq', 1) | first | default(none) %}
+                {% if c_link %}
+                  {% set ns.avg = c_link.lqi %}
                 {% endif %}
               {% endif %}
             {% endif %}
@@ -116,6 +151,11 @@ filter:
                     {% set up_link = links | selectattr('sourceIeeeAddr', 'eq', ns.my_ieee) | selectattr('targetIeeeAddr', 'eq', p_link.sourceIeeeAddr) | first | default(none) %}
                     {% if up_link %}
                       {% set ns.avg = (p_link.lqi + up_link.lqi) / 2 %}
+                    {% endif %}
+                  {% else %}
+                    {% set c_link = links | selectattr('sourceIeeeAddr', 'eq', ns.my_ieee) | selectattr('relationship', 'eq', 1) | first | default(none) %}
+                    {% if c_link %}
+                      {% set ns.avg = c_link.lqi %}
                     {% endif %}
                   {% endif %}
                 {% endif %}
