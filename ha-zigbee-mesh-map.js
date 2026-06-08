@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.4.0";
+const CARD_VERSION = "1.4.1";
 
 const DEFAULTS = {
     view_mode: "force",
@@ -968,7 +968,8 @@ class ZigbeeMeshMapCard extends HTMLElement {
             id: n.ieeeAddr,
             friendlyName: n.friendlyName,
             friendlyNameLower: n.friendlyName.toLowerCase(),
-            type: n.type
+            type: n.type,
+            battery: n.type === "EndDevice" && typeof n.definition?.supports === "string" && n.definition.supports.includes("battery")
         }));
 
         // Filter out phantom links (broadcast addr, stale devices) that would crash d3-force
@@ -1008,6 +1009,8 @@ class ZigbeeMeshMapCard extends HTMLElement {
             return n && (n.type === "Coordinator" || (n.type === "Router" && n.backbone));
         };
 
+        const isBatteryEndDevice = (id) => nodeById.get(id)?.battery === true;
+
         const filteredLinks = linkFilter === "all"
             ? safeRawLinks
             : safeRawLinks.filter(l => l.relationship === 0 || l.relationship === 1);
@@ -1024,7 +1027,17 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 const hasF = fwdLqi != null, hasR = revLqi != null;
                 let tier = "neighbor";
                 if (isParentChild) tier = isBackboneNode(src) && isBackboneNode(tgt) ? "backbone" : "route";
-                linkMap.set(key, { source: src, target: tgt, lqi: hasF ? fwdLqi : (hasR ? 0 : null), lqiReverse: hasR ? revLqi : (hasF ? 0 : null), tier });
+                let lqi, lqiReverse;
+                if (isBatteryEndDevice(src) || isBatteryEndDevice(tgt)) {
+                    const edAddr = isBatteryEndDevice(src) ? src : tgt;
+                    const prAddr = isBatteryEndDevice(src) ? tgt : src;
+                    lqi = lqiLookup.get(`${edAddr}->${prAddr}`) ?? lqiLookup.get(`${prAddr}->${edAddr}`) ?? null;
+                    lqiReverse = null;
+                } else {
+                    lqi = hasF ? fwdLqi : (hasR ? 0 : null);
+                    lqiReverse = hasR ? revLqi : (hasF ? 0 : null);
+                }
+                linkMap.set(key, { source: src, target: tgt, lqi, lqiReverse, tier });
             } else if (isParentChild) {
                 const entry = linkMap.get(key);
                 if (entry.tier === "neighbor") entry.tier = isBackboneNode(src) && isBackboneNode(tgt) ? "backbone" : "route";
