@@ -1,9 +1,9 @@
 # <img src="https://raw.githubusercontent.com/lubomir-moric/ha-zigbee-mesh-map/main/media/icon.png" width="32" height="32" alt="icon"> Zigbee Mesh Map Card
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 [![Release](https://img.shields.io/github/v/release/lubomir-moric/ha-zigbee-mesh-map)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/releases)
-[![License](https://img.shields.io/badge/License-MIT--0-green.svg)](ca://s?q=Show_license_info)
-[![Stars](https://img.shields.io/github/stars/lubomir-moric/ha-zigbee-mesh-map.svg)](ca://s?q=Show_repository_stars)
+[![License](https://img.shields.io/badge/License-MIT--0-green.svg)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/blob/main/LICENSE)
+[![Stars](https://img.shields.io/github/stars/lubomir-moric/ha-zigbee-mesh-map.svg)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/stargazers)
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map&category=plugin)
 
