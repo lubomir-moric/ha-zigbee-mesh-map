@@ -61,27 +61,28 @@ Star view respects `min_lqi` and `min_lqi_mode`: in **remove** mode, weak links 
 
 ## 📦 Installation
 
-### Method 1: The Easy Way (Recommended)
-Click the button below to automatically open the repository in HACS:
+### Method 1: Via HACS (Recommended)
 
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map&category=plugin)
+The easiest way to install is directly through HACS:
+
+1. Click the button below to open the repository in your Home Assistant instance:
+   [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map&category=plugin)
+2. Click **Download** in the bottom right corner.
+3. Reload your browser or clear your cache after installation.
+
+*Alternatively, open HACS, navigate to **Frontend**, click the three dots/search icon, and search for `Zigbee Mesh Map Card`.*
 
 ### Method 2: Manual Installation
-1. Open **HACS** in your Home Assistant.
-2. Click the **three dots (⋮)** in the top right corner and select **Custom repositories**.
-3. Repository: `https://github.com/lubomir-moric/ha-zigbee-mesh-map`
-4. Category: `Lovelace` (or `Plugin`)
-5. Click **Add**, then search for "Zigbee Mesh Map Card" to install.
 
-### Method 3: Manual Installation
-1. Download `ha-zigbee-mesh-map.js` from the [latest release](https://github.com/lubomir-moric/ha-zigbee-mesh-map/releases)
-2. Place it in `/config/www/zigbee-mesh-map/`
-3. Add the resource:
+If you don't use HACS, you can install the card manually:
 
-```yaml
-url: /local/zigbee-mesh-map/ha-zigbee-mesh-map.js
-type: module
-```
+1. Download the `ha-zigbee-mesh-map.js` file from the [latest release](https://github.com/lubomir-moric/ha-zigbee-mesh-map/releases).
+2. Upload the file to your Home Assistant installation inside the `/config/www/` directory (e.g., `/config/www/zigbee-mesh-map/ha-zigbee-mesh-map.js`).
+3. Register the resource in Home Assistant:
+   * Go to **Settings** → **Dashboards**.
+   * Click the three dots in the top right and select **Resources**.
+   * Click **Add Resource**.
+   * Set the URL to `/local/zigbee-mesh-map/ha-zigbee-mesh-map.js` and the type to `JavaScript Module`.
 
 ## 📡 Zigbee Network Map Sensor (Required)
 
