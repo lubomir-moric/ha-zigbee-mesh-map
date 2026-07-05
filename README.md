@@ -2,7 +2,7 @@
 
 [![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 [![Release](https://img.shields.io/github/v/release/lubomir-moric/ha-zigbee-mesh-map)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/releases)
-[![License](https://img.shields.io/badge/License-MIT--0-green.svg)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/blob/main/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/blob/main/LICENSE)
 [![Stars](https://img.shields.io/github/stars/lubomir-moric/ha-zigbee-mesh-map.svg)](https://github.com/lubomir-moric/ha-zigbee-mesh-map/stargazers)
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=lubomir-moric&repository=ha-zigbee-mesh-map&category=plugin)
