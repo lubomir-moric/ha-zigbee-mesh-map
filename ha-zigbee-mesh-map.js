@@ -1,6 +1,6 @@
 import * as d3 from "https://cdn.skypack.dev/d3@7";
 
-const CARD_VERSION = "1.4.1";
+const CARD_VERSION = "1.5.0";
 
 const DEFAULTS = {
     view_mode: "force",
@@ -148,6 +148,30 @@ class ZigbeeMeshMapCard extends HTMLElement {
             return { ...DEFAULTS[key], ...val };
         }
         return val;
+    }
+
+    _positionsStorageKey() {
+        return `zigbee-mesh-map-positions:${this._config.entity}:${this._linkFilter}`;
+    }
+
+    _loadSavedPositions() {
+        try {
+            const raw = localStorage.getItem(this._positionsStorageKey());
+            return raw ? JSON.parse(raw) : {};
+        } catch (err) {
+            return {};
+        }
+    }
+
+    _saveNodePosition(id, x, y) {
+        try {
+            const key = this._positionsStorageKey();
+            const positions = this._loadSavedPositions();
+            positions[id] = { x, y };
+            localStorage.setItem(key, JSON.stringify(positions));
+        } catch (err) {
+            // localStorage unavailable (e.g. private browsing) - silently skip persistence
+        }
     }
 
     static _VIEW_MODE_MAP = {
@@ -1418,10 +1442,17 @@ class ZigbeeMeshMapCard extends HTMLElement {
             const centerX = width / 2;
             const centerY = height / 2;
 
+            const savedPositions = this._starNodeId ? {} : this._loadSavedPositions();
+
             nodes.forEach((n, i) => {
                 const angle = (i / nodes.length) * 2 * Math.PI;
                 n.x = centerX + radius * Math.cos(angle);
                 n.y = centerY + radius * Math.sin(angle);
+                const saved = savedPositions[n.id];
+                if (saved) {
+                    n.x = saved.x;
+                    n.y = saved.y;
+                }
             });
 
             const sim = d3.forceSimulation(nodes)
@@ -1435,6 +1466,16 @@ class ZigbeeMeshMapCard extends HTMLElement {
                 .alphaDecay(forceCfg.alpha_decay);
 
             this._simulation = sim;
+
+            let hasDragged = false;
+            const saveAllPositions = () => {
+                for (const n of nodes) this._saveNodePosition(n.id, n.x, n.y);
+            };
+            sim.on("end.savePositions", () => {
+                if (this._starNodeId || !hasDragged) return;
+                saveAllPositions();
+                hasDragged = false;
+            });
 
             const link = container.append("g").selectAll("line")
                 .data(links).join("line")
@@ -1465,6 +1506,10 @@ class ZigbeeMeshMapCard extends HTMLElement {
                     })
                     .on("end", e => {
                         if (!e.active) sim.alphaTarget(0);
+                        if (e.subject._dragged && !this._starNodeId) {
+                            saveAllPositions();
+                            hasDragged = true;
+                        }
                         e.subject.fx = null;
                         e.subject.fy = null;
                     })
