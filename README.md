@@ -324,7 +324,7 @@ At the top of each block in the configuration file, you will find an explicit `=
 
 ## 📄 License
 
-MIT No Attribution (MIT-0)
+MIT
 
 ## ✨ AI-Generated Project
 
