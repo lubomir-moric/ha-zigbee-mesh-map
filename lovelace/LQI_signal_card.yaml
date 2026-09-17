@@ -22,7 +22,7 @@ filter:
           {# ============================= #}
           {% set nodes = state_attr(networkmap, 'nodes') or [] %}
 
-          {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity) %} 
+          {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity, true) %} 
           {% set my_name = fname
             | replace(' ' ~ suffix, '')
             | replace(suffix, '')
@@ -56,7 +56,7 @@ filter:
           {% set nodes = state_attr(networkmap, 'nodes') or [] %}
           {% set links = state_attr(networkmap, 'links') or [] %}
 
-          {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity) %} 
+          {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity, true) %} 
           {% set my_name = fname.replace(' Linkquality','') | replace('linkquality','') | trim %}
 
           {% set ns = namespace(node=none, down='--', up='--', child=false) %}
@@ -94,7 +94,7 @@ filter:
           {% set nodes = state_attr(networkmap, 'nodes') or [] %}
           {% set links = state_attr(networkmap, 'links') or [] %}
 
-          {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity) %} 
+          {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity, true) %} 
           {% set my_name = fname.replace(' Linkquality','') | replace('linkquality','') | trim %}
 
           {% set lqi = states(config.entity) %} {% if lqi in ['unknown','unavailable',''] %}{% set lqi = '--' %}{% endif %}
@@ -134,7 +134,7 @@ filter:
           {% set nodes = state_attr(networkmap, 'nodes') or [] %}
           {% set links = state_attr(networkmap, 'links') or [] %}
 
-          {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity) %} 
+          {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity, true) %} 
           {% set my_name = fname.replace(' Linkquality','') | replace('linkquality','') | trim %}
 
           {% set ns = namespace(my_ieee=none, avg=-1) %}
@@ -176,7 +176,7 @@ filter:
               {% set nodes = state_attr(networkmap, 'nodes') or [] %}
               {% set links = state_attr(networkmap, 'links') or [] %}
 
-              {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity) %}
+              {% set fname = state_attr(config.entity, 'friendly_name') | default(config.entity, true) %}
               {% set my_name = fname.replace(' Linkquality','') | replace('linkquality','') | trim %}
 
               {% set ns = namespace(my_ieee=none, avg=-1) %}
