@@ -265,9 +265,7 @@ It dynamically extracts parent routing names directly from your `sensor.zigbee2m
 #### 📝 What the Data Represents
 * **LQI (Link Quality Indicator):** A metric that measures the signal strength and packet data quality between two Zigbee nodes. Higher values mean a more stable connection (scaled 0 to 255).
 * **`XXX / YYY` Value:** This shows the **bidirectional link quality**. `XXX` represents the *downstream* LQI (Parent router to Device), while `YYY` represents the *upstream* LQI (Device back to Parent router).
-* **Parent Node Link:** The secondary information row displays the friendly name of the direct parent routing node (`⬆️ Parent Name`) that the device is currently utilizing to communicate with the coordinator, alongside its localized base signal strength (`📡`).
-
-⚠️ **Important Note on Entity Availability:** By default, Home Assistant often keeps the `*_linkquality` sensors disabled when discovering new devices from Zigbee2MQTT. **You must manually enable these entities** in your Home Assistant Settings (**Settings → Devices & Services → MQTT → Devices**) for this card to find and display them.
+* **Parent Node Link:** The secondary information row displays the friendly name of the direct parent routing node (`⬆️ Parent Name`) that the device is currently utilizing to communicate with the coordinator.
 
 #### Prerequisites
 To use this companion card, make sure you have the following frontend plugins installed via HACS:
@@ -285,9 +283,6 @@ To use this companion card, make sure you have the following frontend plugins in
 At the top of each block in the configuration file, you will find an explicit `======= CONFIGURATION =======` section. You can easily adjust these variables to match your personal naming styles or language preference:
 
 * `networkmap`: The entity ID of your Zigbee2MQTT network map sensor.
-* `suffix`: The string stripped from your entity names to compute clean friendly names (e.g., `Linkquality`).
-* `text_not_found`: Fallback text if a parent node cannot be parsed.
-* `text_coordinator`: Display name for your main Zigbee coordinator hub.
 
 ## 🛠 Requirements
 

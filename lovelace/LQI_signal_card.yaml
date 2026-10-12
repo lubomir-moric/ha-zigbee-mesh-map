@@ -2,7 +2,7 @@ type: custom:auto-entities
 card:
   type: entities
   title: Zigbee Signal Strength (LQI)
-  card_mod:
+  uix:
     style:
       template-entity-row $: |
         state-badge { background-color: transparent !important; }
@@ -10,213 +10,50 @@ card:
       .: |
         template-entity-row { font-family: monospace; font-size: 90%; }
 filter:
-  include:
-    - entity_id: sensor.*_linkquality
-      options:
-        type: custom:template-entity-row
-        active: true
-        name: >
-          {# ======= CONFIGURATION ======= #}
-          {% set networkmap = 'sensor.zigbee2mqtt_networkmap' %}
-          {% set suffix = 'Linkquality' %}
-          {# ============================= #}
-          {% set nodes = state_attr(networkmap, 'nodes') or [] %}
+  template: >
+    {# ======= CONFIGURATION ======= #}
+    {% set nm = 'sensor.zigbee2mqtt_networkmap' %}
+    {# ============================= #}
 
-          {% set fname = state_attr(config.entity, 'friendly_name') or config.entity or '' %} 
-          {% set my_name = fname
-            | replace(' ' ~ suffix, '')
-            | replace(suffix, '')
-            | replace(' ' ~ suffix | lower, '')
-            | replace(suffix | lower, '')
-            | trim %}
+    {% set nodes = state_attr(nm, 'nodes') or [] %}
 
-          {% set ns = namespace(node=none, icon='🔌') %}
+    {% set links = state_attr(nm, 'links') or [] %}
 
-          {% for n in nodes %}
-            {% if n.friendlyName | lower == my_name | lower %}
-              {% set ns.node = n %}
-            {% endif %}
-          {% endfor %}
+    {% set ns = namespace(rows=[]) %}
 
-          {% if ns.node %}
-            {% if ns.node.type == 'EndDevice' %}
-              {% set ns.icon = '🔋' %}
-            {% elif ns.node.type == 'Coordinator' %}
-              {% set ns.icon = '🧠' %}
-            {% else %}
-              {% set ns.icon = '🔌' %}
-            {% endif %}
-          {% endif %}
+    {% for n in nodes | rejectattr('type','eq','Coordinator') |
+    sort(case_sensitive=false, attribute='friendlyName') %}
+      {% set ieee = n.ieeeAddr %}
+      {% set p = links | selectattr('targetIeeeAddr','eq',ieee) | selectattr('relationship','eq',0) | first | default(none) %}
+      {% set child = false %}
+      {% if not p %}
+        {% set p = links | selectattr('sourceIeeeAddr','eq',ieee) | selectattr('relationship','eq',1) | first | default(none) %}
+        {% set child = true %}
+      {% endif %}
+      {% set down = p.lqi if p else none %}
+      {% set up = none %}
+      {% if p and not child %}
+        {% set u = links | selectattr('sourceIeeeAddr','eq',ieee) | selectattr('targetIeeeAddr','eq',p.sourceIeeeAddr) | first | default(none) %}
+        {% set up = u.lqi if u else none %}
+      {% endif %}
+      {% set pieee = (p.sourceIeeeAddr if p.targetIeeeAddr == ieee else p.targetIeeeAddr) if p else none %}
+      {% set pn = nodes | selectattr('ieeeAddr','eq',pieee) | first | default(none) if pieee else none %}
+      {% set parent = ('Coordinator' if pn.type == 'Coordinator' else pn.friendlyName) if pn else 'Not Found' %}
+      {% set avg = (((down + up) / 2) if up is not none else -1) if (p and not child) else (down if down is not none else -1) %}
+      {% set color = '#4CAF50' if avg >= 200 else '#FDD835' if avg >= 150 else '#FB8C00' if avg >= 100 else '#F44336' if avg >= 50 else '#5F5F5F' %}
+      {% set icon = 'mdi:signal-cellular-3' if avg >= 200 else 'mdi:signal-cellular-2' if avg >= 150 else 'mdi:signal-cellular-1' if avg >= 100 else 'mdi:signal-cellular-outline' if avg >= 50 else 'mdi:signal-off' %}
+      {% set d = down if down is not none else '--' %}
+      {% set val = d if child else d ~ ' / ' ~ (up if up is not none else '--') %}
+      {% set row = {
+        'type': 'custom:template-entity-row',
+        'active': true,
+        'name': ('🔋 ' if n.type == 'EndDevice' else '🔌 ') ~ n.friendlyName,
+        'state': val | string,
+        'secondary': '⬆️ ' ~ parent,
+        'icon': icon,
+        'uix': {'style': ':host { --lqi-color: ' ~ color ~ '; }\nstate-badge { color: var(--lqi-color) !important; }\n'}
+      } %}
+      {% set ns.rows = ns.rows + [row] %}
+    {% endfor %}
 
-          {{ ns.icon }} {{ my_name }}
-        state: >
-          {# ======= CONFIGURATION ======= #}
-          {% set networkmap = 'sensor.zigbee2mqtt_networkmap' %}
-          {# ============================= #}
-          {% set nodes = state_attr(networkmap, 'nodes') or [] %}
-          {% set links = state_attr(networkmap, 'links') or [] %}
-
-          {% set fname = state_attr(config.entity, 'friendly_name') or config.entity or '' %} 
-          {% set my_name = fname.replace(' Linkquality','') | replace('linkquality','') | trim %}
-
-          {% set ns = namespace(node=none, down='--', up='--', child=false) %}
-
-          {% for n in nodes %}
-            {% if n.friendlyName | lower == my_name | lower %}
-              {% set ns.node = n %}
-            {% endif %}
-          {% endfor %}
-
-          {% if ns.node %}
-            {% set p_list = links | selectattr('targetIeeeAddr','eq',ns.node.ieeeAddr) | selectattr('relationship','eq',0) | list %}
-            {% set p = p_list | first if p_list | length > 0 else none %}
-
-            {% if p %}
-              {% set ns.down = p.lqi %}
-              {% set u_list = links | selectattr('sourceIeeeAddr','eq',ns.node.ieeeAddr) | selectattr('targetIeeeAddr','eq',p.sourceIeeeAddr) | list %}
-              {% set u = u_list | first if u_list | length > 0 else none %}
-              {% if u %}{% set ns.up = u.lqi %}{% endif %}
-            {% else %}
-              {% set c_list = links | selectattr('sourceIeeeAddr','eq',ns.node.ieeeAddr) | selectattr('relationship','eq',1) | list %}
-              {% set c = c_list | first if c_list | length > 0 else none %}
-              {% if c %}
-                {% set ns.down = c.lqi %}
-                {% set ns.child = true %}
-              {% endif %}
-            {% endif %}
-          {% endif %}
-
-          {{ ns.down if ns.child else ns.down ~ ' / ' ~ ns.up }}
-        secondary: >
-          {# ======= CONFIGURATION ======= #}
-          {% set networkmap = 'sensor.zigbee2mqtt_networkmap' %}
-          {# ============================= #}
-          {% set nodes = state_attr(networkmap, 'nodes') or [] %}
-          {% set links = state_attr(networkmap, 'links') or [] %}
-
-          {% set fname = state_attr(config.entity, 'friendly_name') or config.entity or '' %} 
-          {% set my_name = fname.replace(' Linkquality','') | replace('linkquality','') | trim %}
-
-          {% set lqi = states(config.entity) %} {% if lqi in ['unknown','unavailable',''] %}{% set lqi = '--' %}{% endif %}
-
-          {% set ns = namespace(node=none, parent='Not Found') %}
-
-          {% for n in nodes %}
-            {% if n.friendlyName | lower == my_name | lower %}
-              {% set ns.node = n %}
-            {% endif %}
-          {% endfor %}
-
-          {% if ns.node %}
-            {% set p_list = links | selectattr('targetIeeeAddr','eq',ns.node.ieeeAddr) | selectattr('relationship','eq',0) | list %}
-            {% set p = p_list | first if p_list | length > 0 else none %}
-            
-            {% if not p %}
-              {% set p_list2 = links | selectattr('sourceIeeeAddr','eq',ns.node.ieeeAddr) | selectattr('relationship','eq',1) | list %}
-              {% set p = p_list2 | first if p_list2 | length > 0 else none %}
-            {% endif %}
-
-            {% if p %}
-              {% set parent_ieee = p.sourceIeeeAddr if p.targetIeeeAddr == ns.node.ieeeAddr else p.targetIeeeAddr %}
-              {% for n in nodes %}
-                {% if n.ieeeAddr == parent_ieee %}
-                  {% set ns.parent = 'Coordinator' if n.type == 'Coordinator' else n.friendlyName %}
-                {% endif %}
-              {% endfor %}
-            {% endif %}
-          {% endif %}
-
-          📡 {{ lqi }} ⬆️ {{ ns.parent }}
-        icon: >
-          {# ======= CONFIGURATION ======= #}
-          {% set networkmap = 'sensor.zigbee2mqtt_networkmap' %}
-          {# ============================= #}
-          {% set nodes = state_attr(networkmap, 'nodes') or [] %}
-          {% set links = state_attr(networkmap, 'links') or [] %}
-
-          {% set fname = state_attr(config.entity, 'friendly_name') or config.entity or '' %} 
-          {% set my_name = fname.replace(' Linkquality','') | replace('linkquality','') | trim %}
-
-          {% set ns = namespace(my_ieee=none, avg=-1) %}
-
-          {% for node in nodes %}
-            {% if node.friendlyName | lower == my_name | lower %}
-              {% set ns.my_ieee = node.ieeeAddr %}
-            {% endif %}
-          {% endfor %}
-
-          {% if ns.my_ieee %}
-            {% set p_list = links | selectattr('targetIeeeAddr','eq',ns.my_ieee) | selectattr('relationship','eq',0) | list %}
-            {% set p = p_list | first if p_list | length > 0 else none %}
-            
-            {% if p %}
-              {% set u_list = links | selectattr('sourceIeeeAddr','eq',ns.my_ieee) | selectattr('targetIeeeAddr','eq',p.sourceIeeeAddr) | list %}
-              {% set u = u_list | first if u_list | length > 0 else none %}
-              {% if u %}
-                {% set ns.avg = (p.lqi + u.lqi) / 2 %}
-              {% endif %}
-            {% else %}
-              {% set c_list = links | selectattr('sourceIeeeAddr','eq',ns.my_ieee) | selectattr('relationship','eq',1) | list %}
-              {% set c = c_list | first if c_list | length > 0 else none %}
-              {% if c %}
-                {% set ns.avg = c.lqi %}
-              {% endif %}
-            {% endif %}
-          {% endif %}
-
-          {% if ns.avg >= 200 %} mdi:signal-cellular-3 
-          {% elif ns.avg >= 150 %} mdi:signal-cellular-2 
-          {% elif ns.avg >= 100 %} mdi:signal-cellular-1
-          {% elif ns.avg >= 50 %} mdi:signal-cellular-outline 
-          {% else %} mdi:signal-off {% endif %}
-        card_mod:
-          style: |
-            :host {
-              {% set networkmap = 'sensor.zigbee2mqtt_networkmap' %}
-              {% set nodes = state_attr(networkmap, 'nodes') or [] %}
-              {% set links = state_attr(networkmap, 'links') or [] %}
-
-              {% set fname = state_attr(config.entity, 'friendly_name') or config.entity or '' %}
-              {% set my_name = fname.replace(' Linkquality','') | replace('linkquality','') | trim %}
-
-              {% set ns = namespace(my_ieee=none, avg=-1) %}
-
-              {% for node in nodes %}
-                {% if node.friendlyName | lower == my_name | lower %}
-                  {% set ns.my_ieee = node.ieeeAddr %}
-                {% endif %}
-              {% endfor %}
-
-              {% if ns.my_ieee %}
-                {% set p_list = links | selectattr('targetIeeeAddr','eq',ns.my_ieee) | selectattr('relationship','eq',0) | list %}
-                {% set p = p_list | first if p_list | length > 0 else none %}
-                
-                {% if p %}
-                  {% set u_list = links | selectattr('sourceIeeeAddr','eq',ns.my_ieee) | selectattr('targetIeeeAddr','eq',p.sourceIeeeAddr) | list %}
-                  {% set u = u_list | first if u_list | length > 0 else none %}
-                  {% if u %}
-                    {% set ns.avg = (p.lqi + u.lqi) / 2 %}
-                  {% endif %}
-                {% else %}
-                  {% set c_list = links | selectattr('sourceIeeeAddr','eq',ns.my_ieee) | selectattr('relationship','eq',1) | list %}
-                  {% set c = c_list | first if c_list | length > 0 else none %}
-                  {% if c %}
-                    {% set ns.avg = c.lqi %}
-                  {% endif %}
-                {% endif %}
-              {% endif %}
-
-              {% if ns.avg >= 200 %} --lqi-color: #4CAF50;
-              {% elif ns.avg >= 150 %} --lqi-color: #FDD835;
-              {% elif ns.avg >= 100 %} --lqi-color: #FB8C00;
-              {% elif ns.avg >= 50 %} --lqi-color: #F44336;
-              {% else %} --lqi-color: #5F5F5F;
-              {% endif %}
-            }
-
-            state-badge {
-              color: var(--lqi-color) !important;
-            }
-sort:
-  method: friendly_name
-  ignore_case: true
+    {{ ns.rows }}
